@@ -25,6 +25,7 @@
 #include <gdk/x11/gdkx.h>
 #include <gtk/gtk.h>
 #include <lightdm.h>
+#include <X11/cursorfont.h>
 
 typedef struct _GreeterUi GreeterUi;
 
@@ -293,6 +294,29 @@ static void login_clicked_cb (GtkButton* button, gpointer userData)
     greeter_ui_authenticate (ui);
 }
 
+static gboolean password_key_pressed_cb (
+    GtkEventControllerKey* controller,
+    guint keyval,
+    guint keycode,
+    GdkModifierType state,
+    gpointer userData
+)
+{
+    GreeterUi* ui = userData;
+
+    (void) controller;
+    (void) keycode;
+    (void) state;
+
+    if (keyval != GDK_KEY_Return && keyval != GDK_KEY_KP_Enter) {
+        return FALSE;
+    }
+
+    greeter_ui_authenticate (ui);
+
+    return TRUE;
+}
+
 static void lightdm_show_prompt_cb (
     LightDMGreeter* greeter,
     const gchar* text,
@@ -455,6 +479,11 @@ static GtkWidget* greeter_ui_create_background (GracefulGreeterConfig* config)
     return picture;
 }
 
+static void greeter_ui_apply_cursor (GtkWidget* widget)
+{
+    gtk_widget_set_cursor_from_name (widget, "default");
+}
+
 static gboolean greeter_ui_apply_monitor_geometry (GreeterUi* ui)
 {
     GdkDisplay* display = gdk_display_get_default ();
@@ -465,6 +494,7 @@ static gboolean greeter_ui_apply_monitor_geometry (GreeterUi* ui)
     Display* xdisplay = NULL;
     Window xroot = 0;
     Window xwindow = 0;
+    Cursor xcursor = 0;
     XWindowAttributes xrootAttributes = { 0 };
 
     if (display == NULL) {
@@ -505,7 +535,13 @@ static gboolean greeter_ui_apply_monitor_geometry (GreeterUi* ui)
     if (surface != NULL && GDK_IS_X11_SURFACE (surface)) {
         xdisplay = GDK_SURFACE_XDISPLAY (surface);
         xwindow = gdk_x11_surface_get_xid (surface);
+        xcursor = XCreateFontCursor (xdisplay, XC_left_ptr);
         XMoveResizeWindow (xdisplay, xwindow, 0, 0, (unsigned int) geometry.width, (unsigned int) geometry.height);
+        if (xcursor != 0) {
+            XDefineCursor (xdisplay, xroot != 0 ? xroot : DefaultRootWindow (xdisplay), xcursor);
+            XDefineCursor (xdisplay, xwindow, xcursor);
+            XFreeCursor (xdisplay, xcursor);
+        }
         XMapRaised (xdisplay, xwindow);
         XFlush (xdisplay);
     }
@@ -555,6 +591,7 @@ static void greeter_ui_new (GMainLoop* loop)
     GtkWidget* card = NULL;
     GtkWidget* content = NULL;
     GtkWidget* title = NULL;
+    GtkEventController* passwordKeyController = NULL;
 
     greeter_ui_load_css ();
 
@@ -569,19 +606,23 @@ static void greeter_ui_new (GMainLoop* loop)
     gtk_window_set_decorated (GTK_WINDOW (ui->window), FALSE);
     gtk_window_set_default_size (GTK_WINDOW (ui->window), 1024, 768);
     gtk_widget_add_css_class (ui->window, "greeter-root");
+    greeter_ui_apply_cursor (ui->window);
     g_object_set_data_full (G_OBJECT (ui->window), "greeter-ui", ui, greeter_ui_free);
     g_signal_connect (ui->window, "close-request", G_CALLBACK (window_close_request_cb), loop);
 
     overlay = gtk_overlay_new ();
     gtk_widget_set_hexpand (overlay, TRUE);
     gtk_widget_set_vexpand (overlay, TRUE);
+    greeter_ui_apply_cursor (overlay);
     gtk_window_set_child (GTK_WINDOW (ui->window), overlay);
 
     background = greeter_ui_create_background (ui->config);
+    greeter_ui_apply_cursor (background);
     gtk_overlay_set_child (GTK_OVERLAY (overlay), background);
 
     card = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
     gtk_widget_add_css_class (card, "login-card");
+    greeter_ui_apply_cursor (card);
     gtk_widget_set_halign (card, GTK_ALIGN_CENTER);
     gtk_widget_set_valign (card, GTK_ALIGN_CENTER);
     gtk_widget_set_margin_top (card, 24);
@@ -609,6 +650,9 @@ static void greeter_ui_new (GMainLoop* loop)
     ui->passwordEntry = gtk_password_entry_new ();
     gtk_password_entry_set_show_peek_icon (GTK_PASSWORD_ENTRY (ui->passwordEntry), TRUE);
     gtk_editable_set_text (GTK_EDITABLE (ui->passwordEntry), "");
+    passwordKeyController = gtk_event_controller_key_new ();
+    g_signal_connect (passwordKeyController, "key-pressed", G_CALLBACK (password_key_pressed_cb), ui);
+    gtk_widget_add_controller (ui->passwordEntry, passwordKeyController);
     gtk_box_append (GTK_BOX (content), ui->passwordEntry);
 
     ui->sessionDropDown = gtk_drop_down_new (NULL, NULL);

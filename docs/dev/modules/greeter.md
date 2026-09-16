@@ -16,7 +16,7 @@
 
 ## 2. 当前行为
 
-- 用户可见行为：第一版提供全屏 greeter、居中登录框、可配置背景图、用户下拉列表、密码输入、session 下拉选择、登录按钮和状态信息；用户名只允许从下拉列表选择，不提供手动用户名输入框。
+- 用户可见行为：第一版提供全屏 greeter、居中登录框、可配置背景图、用户下拉列表、密码输入、session 下拉选择、登录按钮和状态信息；用户名只允许从下拉列表选择，不提供手动用户名输入框；密码框按 Enter 等价触发登录；鼠标在 greeter 界面上显示为默认指针，不使用裸 X 的 X 形光标。
 - 配置/接口/数据：通过 `liblightdm-gobject-1` 与 LightDM daemon 交互；可在 `/etc/lightdm/graceful-greeter.conf` 的 `[Greeter]` 段配置 `Background=/path/to/image`。
 - 默认规则：未配置背景图时使用纯色背景；LightDM secret prompt 不显示 `Password:` 文案；无法连接 LightDM daemon 时显示错误并禁用登录；认证失败后清空密码。
 
@@ -42,6 +42,8 @@
 |------|------|-----------|----------|------|
 | 2026-09-16 | task | 新增 LightDM greeter 最小登录闭环 | 已实现 GTK4 全屏 UI、居中登录框、可配置背景图、LightDM 认证回调、用户列表、session 选择与 xgreeters 描述文件 | `cmake -S . -B build && cmake --build build && ctest --test-dir build --output-on-failure` 通过；测试机 LightDM active，`Graceful` 窗口为 `1280x800+0+0` |
 | 2026-09-16 | fix | 输入密码后 `Log In` 按钮仍不可点击 | 密码输入变化后同步刷新登录按钮敏感状态 | `cmake --build build`、`ctest --test-dir build --output-on-failure`、`git diff --check` 通过；测试机 LightDM active，`Graceful` 窗口为 `1280x800+0+0` |
+| 2026-09-16 | task | 密码框按 Enter 应触发登录 | 为密码框添加 Enter/KP Enter 键盘监听并复用现有登录流程 | `cmake --build build`、`ctest --test-dir build --output-on-failure`、`git diff --check` 通过；测试机 LightDM active，`Graceful` 窗口为 `1280x800+0+0` |
+| 2026-09-16 | fix | 裸 X 环境下鼠标可能显示为 X 形光标 | GTK widget 和 X11 root/window 显式设置默认箭头指针 | `cmake --build build`、`ctest --test-dir build --output-on-failure`、`git diff --check` 通过；测试机 LightDM active，`Graceful` 窗口为 `1280x800+0+0` |
 
 ## 6. 变更记录
 
