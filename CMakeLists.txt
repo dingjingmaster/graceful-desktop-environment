@@ -1,0 +1,7 @@
+cmake_minimum_required(VERSION 3.20)
+project(graceful-desktop-environment LANGUAGES C)
+
+enable_testing()
+
+add_subdirectory(common)
+add_subdirectory(greeter)
