@@ -23,14 +23,14 @@
 
 | 场景 | 用户目标 | 成功标准 | 异常/边界 |
 |------|----------|----------|-----------|
-| LightDM 登录 | 用户选择或输入账号，输入密码并选择 session | 认证成功后启动所选 session | 认证失败时清空密码并保留登录界面 |
+| LightDM 登录 | 用户在全屏 greeter 中选择账号，输入密码并选择 session | 认证成功后启动所选 session | 认证失败时清空密码并保留登录界面 |
 
 ## 4. 核心流程
 
 ```text
 1. LightDM 启动 graceful-greeter。
 2. greeter 连接 LightDM daemon 并展示 GTK4 登录窗口。
-3. 用户从列表选择或手动输入用户名，输入密码并选择 session。
+3. 用户从列表选择用户名，输入密码并选择 session。
 4. greeter 通过 liblightdm-gobject 响应 PAM prompt。
 5. 认证成功后，greeter 请求 LightDM 启动所选 session。
 ```
@@ -41,7 +41,7 @@
 - 状态流转：认证失败回到可登录状态；认证成功进入启动 session 状态。
 - 异常处理：无法连接 LightDM daemon 时禁用登录输入并显示错误。
 - 兼容约束：当前 greeter 面向 LightDM greeter 机制。
-- 用户可见行为：第一版 UI 提供用户列表、用户名输入兜底、密码、session 选择、登录按钮和状态提示。
+- 用户可见行为：第一版 UI 全屏显示，背景图可配置，登录框居中；提供用户列表、密码、session 选择、登录按钮和状态提示。
 
 ## 6. 文档索引
 

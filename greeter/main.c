@@ -19,8 +19,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include "greeter-config.h"
 #include "greeter-login-model.h"
 
+#include <gdk/x11/gdkx.h>
 #include <gtk/gtk.h>
 #include <lightdm.h>
 
@@ -30,17 +32,20 @@ struct _GreeterUi
 {
     GtkWidget* window;
     GtkWidget* userDropDown;
-    GtkWidget* usernameEntry;
     GtkWidget* passwordEntry;
     GtkWidget* sessionDropDown;
     GtkWidget* promptLabel;
     GtkWidget* messageLabel;
     GtkWidget* loginButton;
 
+    GracefulGreeterConfig* config;
     LightDMGreeter* greeter;
     GracefulGreeterLoginModel* model;
     GPtrArray* userNames;
     GPtrArray* sessionKeys;
+    guint geometryWatchId;
+    int monitorWidth;
+    int monitorHeight;
     gboolean awaitingPrompt;
 };
 
@@ -87,19 +92,26 @@ static const char* greeter_ui_get_selected_username (GreeterUi* ui)
 static void greeter_ui_select_username (GreeterUi* ui, const char* username)
 {
     graceful_greeter_login_model_select_username (ui->model, username);
-    gtk_editable_set_text (GTK_EDITABLE (ui->usernameEntry), username != NULL ? username : "");
     gtk_editable_set_text (GTK_EDITABLE (ui->passwordEntry), "");
     greeter_ui_update_login_button (ui);
+}
+
+static void greeter_ui_sync_password (GreeterUi* ui)
+{
+    graceful_greeter_login_model_set_password (ui->model, gtk_editable_get_text (GTK_EDITABLE (ui->passwordEntry)));
 }
 
 static void greeter_ui_respond_to_prompt (GreeterUi* ui)
 {
     g_autoptr(GError) error = NULL;
-    const char* password = graceful_greeter_login_model_get_password (ui->model);
+    const char* password = NULL;
 
     if (!ui->awaitingPrompt) {
         return;
     }
+
+    greeter_ui_sync_password (ui);
+    password = graceful_greeter_login_model_get_password (ui->model);
 
     if (password == NULL) {
         greeter_ui_set_message (ui, "Password is required.");
@@ -108,6 +120,10 @@ static void greeter_ui_respond_to_prompt (GreeterUi* ui)
 
     ui->awaitingPrompt = FALSE;
     gtk_widget_set_sensitive (ui->loginButton, FALSE);
+    g_message ("Responding to LightDM secret prompt for user '%s' with password length %" G_GSIZE_FORMAT,
+        graceful_greeter_login_model_get_username (ui->model),
+        strlen (password)
+    );
 
     if (!lightdm_greeter_respond (ui->greeter, password, &error)) {
         graceful_greeter_login_model_clear_secret (ui->model);
@@ -120,10 +136,13 @@ static void greeter_ui_respond_to_prompt (GreeterUi* ui)
 static void greeter_ui_authenticate (GreeterUi* ui)
 {
     g_autoptr(GError) error = NULL;
-    const char* username = graceful_greeter_login_model_get_username (ui->model);
+    const char* username = NULL;
+
+    greeter_ui_sync_password (ui);
+    username = graceful_greeter_login_model_get_username (ui->model);
 
     if (!graceful_greeter_login_model_can_authenticate (ui->model)) {
-        greeter_ui_set_message (ui, "Enter a username and choose a session.");
+        greeter_ui_set_message (ui, "Select a user, enter a password, and choose a session.");
         return;
     }
 
@@ -235,19 +254,14 @@ static void greeter_ui_populate_users (GreeterUi* ui)
     greeter_ui_select_username (ui, greeter_ui_get_selected_username (ui));
 }
 
-static void username_changed_cb (GtkEditable* editable, gpointer userData)
-{
-    GreeterUi* ui = userData;
-
-    graceful_greeter_login_model_set_username (ui->model, gtk_editable_get_text (editable));
-    greeter_ui_update_login_button (ui);
-}
-
 static void password_changed_cb (GtkEditable* editable, gpointer userData)
 {
     GreeterUi* ui = userData;
 
-    graceful_greeter_login_model_set_password (ui->model, gtk_editable_get_text (editable));
+    (void) editable;
+
+    greeter_ui_sync_password (ui);
+    greeter_ui_update_login_button (ui);
 }
 
 static void session_selected_cb (GObject* object, GParamSpec* pspec, gpointer userData)
@@ -290,15 +304,18 @@ static void lightdm_show_prompt_cb (
 
     (void) greeter;
 
-    gtk_label_set_text (GTK_LABEL (ui->promptLabel), text != NULL ? text : "");
     ui->awaitingPrompt = TRUE;
 
     if (type == LIGHTDM_PROMPT_TYPE_SECRET) {
+        gtk_label_set_text (GTK_LABEL (ui->promptLabel), "");
         gtk_widget_grab_focus (ui->passwordEntry);
     }
     else {
-        gtk_widget_grab_focus (ui->usernameEntry);
+        gtk_label_set_text (GTK_LABEL (ui->promptLabel), text != NULL ? text : "");
+        gtk_widget_grab_focus (ui->userDropDown);
     }
+
+    g_message ("LightDM prompt received: type=%s", type == LIGHTDM_PROMPT_TYPE_SECRET ? "secret" : "question");
 
     greeter_ui_update_login_button (ui);
 
@@ -334,11 +351,13 @@ static void lightdm_authentication_complete_cb (LightDMGreeter* greeter, gpointe
         graceful_greeter_login_model_clear_secret (ui->model);
         gtk_editable_set_text (GTK_EDITABLE (ui->passwordEntry), "");
         greeter_ui_set_message (ui, "Authentication failed.");
+        g_message ("LightDM authentication failed");
         greeter_ui_update_login_button (ui);
         return;
     }
 
     greeter_ui_set_message (ui, "Starting session...");
+    g_message ("LightDM authentication succeeded; starting session '%s'", sessionKey != NULL ? sessionKey : "");
 
     if (!lightdm_greeter_start_session_sync (greeter, sessionKey, &error)) {
         greeter_ui_set_message (ui, error != NULL ? error->message : "Failed to start session.");
@@ -365,10 +384,133 @@ static void greeter_ui_free (gpointer data)
     GreeterUi* ui = data;
 
     g_clear_object (&ui->greeter);
+    g_clear_object (&ui->config);
     g_clear_object (&ui->model);
+    g_clear_handle_id (&ui->geometryWatchId, g_source_remove);
     g_clear_pointer (&ui->userNames, g_ptr_array_unref);
     g_clear_pointer (&ui->sessionKeys, g_ptr_array_unref);
     g_free (ui);
+}
+
+static void greeter_ui_load_css (void)
+{
+    GtkCssProvider* provider = gtk_css_provider_new ();
+    GdkDisplay* display = gdk_display_get_default ();
+
+    gtk_css_provider_load_from_string (
+        provider,
+        ".greeter-root {"
+        "  background: #111318;"
+        "}"
+        ".greeter-background {"
+        "  background: #111318;"
+        "}"
+        ".login-card {"
+        "  background: alpha(#151820, 0.88);"
+        "  color: #f4f6fb;"
+        "  border-radius: 8px;"
+        "  padding: 28px;"
+        "  box-shadow: 0 16px 48px alpha(#000000, 0.35);"
+        "}"
+        ".login-card entry,"
+        ".login-card passwordentry,"
+        ".login-card dropdown,"
+        ".login-card button {"
+        "  min-height: 38px;"
+        "}"
+        ".login-title {"
+        "  font-size: 28px;"
+        "  font-weight: 700;"
+        "}"
+        ".login-message {"
+        "  color: #d6dbea;"
+        "}"
+    );
+
+    gtk_style_context_add_provider_for_display (
+        display,
+        GTK_STYLE_PROVIDER (provider),
+        GTK_STYLE_PROVIDER_PRIORITY_APPLICATION
+    );
+    g_object_unref (provider);
+}
+
+static GtkWidget* greeter_ui_create_background (GracefulGreeterConfig* config)
+{
+    const char* background = graceful_greeter_config_get_background (config);
+    GtkWidget* picture = NULL;
+
+    if (background != NULL && g_file_test (background, G_FILE_TEST_IS_REGULAR)) {
+        picture = gtk_picture_new_for_filename (background);
+        gtk_picture_set_content_fit (GTK_PICTURE (picture), GTK_CONTENT_FIT_COVER);
+    }
+    else {
+        picture = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    }
+
+    gtk_widget_add_css_class (picture, "greeter-background");
+    gtk_widget_set_hexpand (picture, TRUE);
+    gtk_widget_set_vexpand (picture, TRUE);
+
+    return picture;
+}
+
+static gboolean greeter_ui_apply_monitor_geometry (GreeterUi* ui)
+{
+    GdkDisplay* display = gdk_display_get_default ();
+    GListModel* monitors = NULL;
+    g_autoptr(GdkMonitor) monitor = NULL;
+    GdkRectangle geometry = { 0 };
+    GdkSurface* surface = NULL;
+    Display* xdisplay = NULL;
+    Window xroot = 0;
+    Window xwindow = 0;
+    XWindowAttributes xrootAttributes = { 0 };
+
+    if (display == NULL) {
+        return G_SOURCE_CONTINUE;
+    }
+
+    if (GDK_IS_X11_DISPLAY (display)) {
+        xdisplay = gdk_x11_display_get_xdisplay (display);
+        xroot = gdk_x11_display_get_xrootwindow (display);
+
+        if (XGetWindowAttributes (xdisplay, xroot, &xrootAttributes) != 0) {
+            geometry.x = 0;
+            geometry.y = 0;
+            geometry.width = xrootAttributes.width;
+            geometry.height = xrootAttributes.height;
+        }
+    }
+    else {
+        monitors = gdk_display_get_monitors (display);
+        if (g_list_model_get_n_items (monitors) == 0) {
+            return G_SOURCE_CONTINUE;
+        }
+
+        monitor = g_list_model_get_item (monitors, 0);
+        gdk_monitor_get_geometry (monitor, &geometry);
+    }
+
+    if (geometry.width <= 0 || geometry.height <= 0) {
+        return G_SOURCE_CONTINUE;
+    }
+
+    ui->monitorWidth = geometry.width;
+    ui->monitorHeight = geometry.height;
+    gtk_window_set_default_size (GTK_WINDOW (ui->window), geometry.width, geometry.height);
+    gtk_widget_set_size_request (ui->window, geometry.width, geometry.height);
+
+    surface = gtk_native_get_surface (GTK_NATIVE (ui->window));
+    if (surface != NULL && GDK_IS_X11_SURFACE (surface)) {
+        xdisplay = GDK_SURFACE_XDISPLAY (surface);
+        xwindow = gdk_x11_surface_get_xid (surface);
+        XMoveResizeWindow (xdisplay, xwindow, 0, 0, (unsigned int) geometry.width, (unsigned int) geometry.height);
+        XMapRaised (xdisplay, xwindow);
+        XFlush (xdisplay);
+    }
+
+    return G_SOURCE_CONTINUE;
 }
 
 static void lightdm_connect_complete_cb (GObject* object, GAsyncResult* result, gpointer userData)
@@ -379,7 +521,6 @@ static void lightdm_connect_complete_cb (GObject* object, GAsyncResult* result, 
     if (!lightdm_greeter_connect_to_daemon_finish (LIGHTDM_GREETER (object), result, &error)) {
         greeter_ui_set_message (ui, error != NULL ? error->message : "Failed to connect to LightDM.");
         gtk_widget_set_sensitive (ui->userDropDown, FALSE);
-        gtk_widget_set_sensitive (ui->usernameEntry, FALSE);
         gtk_widget_set_sensitive (ui->passwordEntry, FALSE);
         gtk_widget_set_sensitive (ui->sessionDropDown, FALSE);
         gtk_widget_set_sensitive (ui->loginButton, FALSE);
@@ -389,7 +530,6 @@ static void lightdm_connect_complete_cb (GObject* object, GAsyncResult* result, 
     greeter_ui_populate_users (ui);
     greeter_ui_populate_sessions (ui);
     gtk_widget_set_sensitive (ui->userDropDown, TRUE);
-    gtk_widget_set_sensitive (ui->usernameEntry, TRUE);
     gtk_widget_set_sensitive (ui->passwordEntry, TRUE);
     gtk_widget_set_sensitive (ui->sessionDropDown, TRUE);
     greeter_ui_set_message (ui, "");
@@ -410,9 +550,15 @@ static gboolean window_close_request_cb (GtkWindow* window, gpointer userData)
 static void greeter_ui_new (GMainLoop* loop)
 {
     GreeterUi* ui = g_new0 (GreeterUi, 1);
+    GtkWidget* overlay = NULL;
+    GtkWidget* background = NULL;
+    GtkWidget* card = NULL;
     GtkWidget* content = NULL;
     GtkWidget* title = NULL;
 
+    greeter_ui_load_css ();
+
+    ui->config = graceful_greeter_config_new ();
     ui->greeter = lightdm_greeter_new ();
     ui->model = graceful_greeter_login_model_new ();
     ui->userNames = g_ptr_array_new_with_free_func (g_free);
@@ -420,19 +566,37 @@ static void greeter_ui_new (GMainLoop* loop)
 
     ui->window = gtk_window_new ();
     gtk_window_set_title (GTK_WINDOW (ui->window), "Graceful");
-    gtk_window_set_default_size (GTK_WINDOW (ui->window), 420, 320);
+    gtk_window_set_decorated (GTK_WINDOW (ui->window), FALSE);
+    gtk_window_set_default_size (GTK_WINDOW (ui->window), 1024, 768);
+    gtk_widget_add_css_class (ui->window, "greeter-root");
     g_object_set_data_full (G_OBJECT (ui->window), "greeter-ui", ui, greeter_ui_free);
     g_signal_connect (ui->window, "close-request", G_CALLBACK (window_close_request_cb), loop);
 
+    overlay = gtk_overlay_new ();
+    gtk_widget_set_hexpand (overlay, TRUE);
+    gtk_widget_set_vexpand (overlay, TRUE);
+    gtk_window_set_child (GTK_WINDOW (ui->window), overlay);
+
+    background = greeter_ui_create_background (ui->config);
+    gtk_overlay_set_child (GTK_OVERLAY (overlay), background);
+
+    card = gtk_box_new (GTK_ORIENTATION_VERTICAL, 0);
+    gtk_widget_add_css_class (card, "login-card");
+    gtk_widget_set_halign (card, GTK_ALIGN_CENTER);
+    gtk_widget_set_valign (card, GTK_ALIGN_CENTER);
+    gtk_widget_set_margin_top (card, 24);
+    gtk_widget_set_margin_bottom (card, 24);
+    gtk_widget_set_margin_start (card, 24);
+    gtk_widget_set_margin_end (card, 24);
+    gtk_widget_set_size_request (card, 360, -1);
+    gtk_overlay_add_overlay (GTK_OVERLAY (overlay), card);
+
     content = gtk_box_new (GTK_ORIENTATION_VERTICAL, 12);
-    gtk_widget_set_margin_top (content, 36);
-    gtk_widget_set_margin_bottom (content, 36);
-    gtk_widget_set_margin_start (content, 36);
-    gtk_widget_set_margin_end (content, 36);
-    gtk_window_set_child (GTK_WINDOW (ui->window), content);
+    gtk_widget_set_hexpand (content, TRUE);
+    gtk_box_append (GTK_BOX (card), content);
 
     title = gtk_label_new ("Graceful");
-    gtk_widget_add_css_class (title, "title-1");
+    gtk_widget_add_css_class (title, "login-title");
     gtk_box_append (GTK_BOX (content), title);
 
     ui->promptLabel = gtk_label_new ("");
@@ -441,10 +605,6 @@ static void greeter_ui_new (GMainLoop* loop)
 
     ui->userDropDown = gtk_drop_down_new (NULL, NULL);
     gtk_box_append (GTK_BOX (content), ui->userDropDown);
-
-    ui->usernameEntry = gtk_entry_new ();
-    gtk_entry_set_placeholder_text (GTK_ENTRY (ui->usernameEntry), "Username");
-    gtk_box_append (GTK_BOX (content), ui->usernameEntry);
 
     ui->passwordEntry = gtk_password_entry_new ();
     gtk_password_entry_set_show_peek_icon (GTK_PASSWORD_ENTRY (ui->passwordEntry), TRUE);
@@ -459,10 +619,10 @@ static void greeter_ui_new (GMainLoop* loop)
     gtk_box_append (GTK_BOX (content), ui->loginButton);
 
     ui->messageLabel = gtk_label_new ("");
+    gtk_widget_add_css_class (ui->messageLabel, "login-message");
     gtk_label_set_wrap (GTK_LABEL (ui->messageLabel), TRUE);
     gtk_box_append (GTK_BOX (content), ui->messageLabel);
 
-    g_signal_connect (ui->usernameEntry, "changed", G_CALLBACK (username_changed_cb), ui);
     g_signal_connect (ui->passwordEntry, "changed", G_CALLBACK (password_changed_cb), ui);
     g_signal_connect (ui->userDropDown, "notify::selected", G_CALLBACK (user_selected_cb), ui);
     g_signal_connect (ui->sessionDropDown, "notify::selected", G_CALLBACK (session_selected_cb), ui);
@@ -474,10 +634,12 @@ static void greeter_ui_new (GMainLoop* loop)
 
     greeter_ui_set_message (ui, "Connecting to LightDM...");
     gtk_widget_set_sensitive (ui->userDropDown, FALSE);
-    gtk_widget_set_sensitive (ui->usernameEntry, FALSE);
     gtk_widget_set_sensitive (ui->passwordEntry, FALSE);
     gtk_widget_set_sensitive (ui->sessionDropDown, FALSE);
     gtk_widget_set_sensitive (ui->loginButton, FALSE);
+    greeter_ui_apply_monitor_geometry (ui);
+    ui->geometryWatchId = g_timeout_add_seconds (1, (GSourceFunc) greeter_ui_apply_monitor_geometry, ui);
+    gtk_window_fullscreen (GTK_WINDOW (ui->window));
     gtk_window_present (GTK_WINDOW (ui->window));
     lightdm_greeter_connect_to_daemon (ui->greeter, NULL, lightdm_connect_complete_cb, ui);
 }

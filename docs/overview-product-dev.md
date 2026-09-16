@@ -13,6 +13,7 @@
 | 语言 | C | 项目实现语言 | 可使用 GObject 组织模块 |
 | 构建系统 | CMake 3.20+ | 构建 greeter/common | 使用 pkg-config 发现依赖 |
 | 关键依赖 | GTK4 | greeter 图形界面 | 本地验证版本 4.22.5 |
+| 关键依赖 | gtk4-x11 / Xlib | LightDM X11 greeter 精确匹配显示器尺寸 | 裸 X 环境下用于强制设置 greeter 窗口几何 |
 | 关键依赖 | liblightdm-gobject-1 | LightDM greeter API | 本地验证版本 1.32.0 |
 | 关键依赖 | GLib/GObject | 对象模型和单元测试 | greeter 内部模型使用 |
 
@@ -21,7 +22,7 @@
 - 模块划分：`greeter/` 放 LightDM greeter 私有 UI、认证和模型；`common/` 只放 greeter/session/settings-daemon/desktop 共享的纯 C 公共库。
 - 进程/线程/内核边界：`graceful-greeter` 是由 LightDM 启动的独立 greeter 进程。
 - 客户端/服务端/驱动边界：greeter 通过 `liblightdm-gobject-1` 与 LightDM daemon 交互。
-- 数据流：LightDM 用户列表/GTK 输入控件 -> greeter 登录模型 -> LightDM PAM prompt response。
+- 数据流：LightDM 用户列表/GTK 密码输入控件 -> greeter 登录模型 -> LightDM PAM prompt response。
 - 控制流：GTK application activate -> LightDM daemon connect -> 用户触发 authenticate -> prompt response -> authentication-complete -> start session。
 - 外部依赖：LightDM、PAM、系统 session desktop 文件。
 
@@ -35,7 +36,7 @@
 ## 4. 数据与配置
 
 - 核心数据结构：`GracefulGreeterLoginModel` 保存用户名、密码和 session key。
-- 配置文件/参数：`greeter/graceful-greeter.desktop` 描述 LightDM greeter 入口。
+- 配置文件/参数：`greeter/graceful-greeter.desktop` 描述 LightDM greeter 入口；`/etc/lightdm/graceful-greeter.conf` 可配置 `[Greeter] Background=/path/to/image`。
 - 持久化数据：无。
 - 迁移/兼容规则：无历史数据迁移。
 - 敏感信息处理：密码不写日志、不持久化；认证失败和 reset 时清空模型密码。
@@ -47,6 +48,7 @@
 | 内存/生命周期 | GObject 引用、GPtrArray 字符串释放、GTK widget 生命周期 | 构建、单元测试、代码审查 | docs/dev/1-summary-greeter.md |
 | ABI/API/协议 | LightDM greeter API、xgreeters desktop entry | CMake 构建链接、安装规则审查 | docs/dev/1-summary-greeter.md |
 | 权限/系统调用 | 登录认证由 LightDM/PAM 承担 | 当前未执行真实登录；后续测试机集成验证 | docs/dev/1-summary-greeter.md |
+| 显示几何 | 裸 X 下无窗口管理器，GTK fullscreen 不保证覆盖 root window | X11 root/window 几何检查 | docs/dev/modules/greeter.md |
 
 ## 6. 构建与验证
 

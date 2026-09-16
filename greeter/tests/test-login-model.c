@@ -24,7 +24,7 @@
 
 #include <glib.h>
 
-static void login_model_requires_username_and_session (void)
+static void login_model_requires_username_password_and_session (void)
 {
     GracefulGreeterLoginModel* model = graceful_greeter_login_model_new ();
 
@@ -34,6 +34,9 @@ static void login_model_requires_username_and_session (void)
     g_assert_false (graceful_greeter_login_model_can_authenticate (model));
 
     graceful_greeter_login_model_set_session_key (model, "graceful");
+    g_assert_false (graceful_greeter_login_model_can_authenticate (model));
+
+    graceful_greeter_login_model_set_password (model, "secret");
     g_assert_true (graceful_greeter_login_model_can_authenticate (model));
 
     g_object_unref (model);
@@ -103,7 +106,10 @@ int main (int argc, char* argv[])
 {
     g_test_init (&argc, &argv, NULL);
 
-    g_test_add_func ("/greeter/login-model/requires-username-and-session", login_model_requires_username_and_session);
+    g_test_add_func (
+        "/greeter/login-model/requires-username-password-and-session",
+        login_model_requires_username_password_and_session
+    );
     g_test_add_func ("/greeter/login-model/normalizes-empty-text-to-null", login_model_normalizes_empty_text_to_null);
     g_test_add_func ("/greeter/login-model/clear-secret-only-clears-password", login_model_clear_secret_only_clears_password);
     g_test_add_func ("/greeter/login-model/preserves-password-whitespace", login_model_preserves_password_whitespace);

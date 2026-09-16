@@ -159,5 +159,5 @@ gboolean graceful_greeter_login_model_can_authenticate (GracefulGreeterLoginMode
 {
     g_return_val_if_fail (GRACEFUL_IS_GREETER_LOGIN_MODEL (model), FALSE);
 
-    return model->username != NULL && model->sessionKey != NULL;
+    return model->username != NULL && model->password != NULL && model->sessionKey != NULL;
 }
