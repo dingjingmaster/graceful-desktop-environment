@@ -64,6 +64,17 @@ static void monitor_model_parses_meminfo_percent (void)
     );
 }
 
+static void monitor_model_formats_resource_labels (void)
+{
+    g_autofree char* memory = graceful_panel_monitor_format_memory_label (48.5);
+    g_autofree char* cpu = graceful_panel_monitor_format_cpu_label (37.25, FALSE, 0.0);
+    g_autofree char* cpuWithTemperature = graceful_panel_monitor_format_cpu_label (92.0, TRUE, 61.5);
+
+    g_assert_cmpstr (memory, ==, "MEM 48.50%");
+    g_assert_cmpstr (cpu, ==, "CPU 37.25%");
+    g_assert_cmpstr (cpuWithTemperature, ==, "CPU 92.00% 61.50 \302\260C");
+}
+
 int main (int argc, char* argv[])
 {
     g_test_init (&argc, &argv, NULL);
@@ -83,6 +94,10 @@ int main (int argc, char* argv[])
     g_test_add_func (
         "/panel/system-monitor/parses-meminfo-percent",
         monitor_model_parses_meminfo_percent
+    );
+    g_test_add_func (
+        "/panel/system-monitor/formats-resource-labels",
+        monitor_model_formats_resource_labels
     );
 
     return g_test_run ();

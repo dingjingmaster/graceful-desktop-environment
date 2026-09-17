@@ -34,6 +34,8 @@ typedef struct
 
 char* graceful_panel_monitor_format_bytes_per_second (double bytesPerSecond);
 char* graceful_panel_monitor_format_percent (double percent);
+char* graceful_panel_monitor_format_memory_label (double usagePercent);
+char* graceful_panel_monitor_format_cpu_label (double usagePercent, gboolean hasTemperature, double temperatureCelsius);
 gboolean graceful_panel_monitor_parse_net_dev (const char* text, GracefulPanelNetworkSample* sample);
 gboolean graceful_panel_monitor_parse_proc_stat (const char* text, GracefulPanelCpuSample* sample);
 double graceful_panel_monitor_calculate_cpu_usage (

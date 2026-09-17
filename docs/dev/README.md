@@ -33,3 +33,5 @@
 | 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 右侧状态区移除网络/声音按钮，新增 workspace 指示和 tray 展开按钮/透明 popover 骨架；无托盘项隐藏按钮，菜单开合带箭头旋转动画。 |
 | 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | panel 在 tray 和 Power 之间新增网速、CPU、内存实时监控项，读取 `/proc`/`/sys` 并紧凑显示。 |
 | 2026-09-17 | L3 | system,lifecycle,public-contract,product-flow | session | plan/summary/module | [3-plan-session-components.md](3-plan-session-components.md), [3-summary-session-components.md](3-summary-session-components.md), [modules/session.md](modules/session.md) | 已完成 | session 默认编排 mutter、ibus/rime、desktop 和 panel，保留显式命令调试路径。 |
+| 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | panel 将 CPU/MEM 合并为一个资源状态组件，MEM 在上、CPU 在下。 |
+| 2026-09-17 | L1 | product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 固定网速与资源状态组件预留宽度，CPU 不再显示温度，减少右侧布局跳动。 |

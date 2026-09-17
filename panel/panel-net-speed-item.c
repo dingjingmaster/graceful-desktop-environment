@@ -106,6 +106,10 @@ static void graceful_panel_net_speed_item_init (GracefulPanelNetSpeedItem* self)
 {
     self->uploadLabel = gtk_label_new ("\342\206\221 0.00 B/s");
     self->downloadLabel = gtk_label_new ("\342\206\223 0.00 B/s");
+    gtk_label_set_width_chars (GTK_LABEL (self->uploadLabel), 13);
+    gtk_label_set_width_chars (GTK_LABEL (self->downloadLabel), 13);
+    gtk_label_set_xalign (GTK_LABEL (self->uploadLabel), 0.0);
+    gtk_label_set_xalign (GTK_LABEL (self->downloadLabel), 0.0);
     gtk_widget_add_css_class (GTK_WIDGET (self), "panel-monitor-item");
     gtk_widget_add_css_class (self->uploadLabel, "panel-monitor-primary-label");
     gtk_widget_add_css_class (self->downloadLabel, "panel-monitor-primary-label");

@@ -22,10 +22,9 @@
 #include "panel-status-area.h"
 
 #include "panel-clock-item.h"
-#include "panel-cpu-item.h"
-#include "panel-memory-item.h"
 #include "panel-net-speed-item.h"
 #include "panel-power-item.h"
+#include "panel-resource-item.h"
 #include "panel-tray-item.h"
 #include "panel-workspace-item.h"
 
@@ -47,8 +46,7 @@ static void graceful_panel_status_area_init (GracefulPanelStatusArea* self)
     gtk_box_append (GTK_BOX (self), graceful_panel_workspace_item_new ());
     gtk_box_append (GTK_BOX (self), graceful_panel_tray_item_widget_new ());
     gtk_box_append (GTK_BOX (self), graceful_panel_net_speed_item_new ());
-    gtk_box_append (GTK_BOX (self), graceful_panel_cpu_item_new ());
-    gtk_box_append (GTK_BOX (self), graceful_panel_memory_item_new ());
+    gtk_box_append (GTK_BOX (self), graceful_panel_resource_item_new ());
     gtk_box_append (GTK_BOX (self), graceful_panel_power_item_new ());
     gtk_box_append (GTK_BOX (self), graceful_panel_clock_item_new ());
 }

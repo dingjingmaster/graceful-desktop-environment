@@ -48,6 +48,8 @@ add_library(graceful-panel-core STATIC
     panel-power-action.h
     panel-power-item.c
     panel-power-item.h
+    panel-resource-item.c
+    panel-resource-item.h
     panel-status-area.c
     panel-status-area.h
     panel-start-menu.c

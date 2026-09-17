@@ -41,6 +41,24 @@ char* graceful_panel_monitor_format_percent (double percent)
     return g_strdup_printf ("%.2f%%", CLAMP (percent, 0.0, 100.0));
 }
 
+char* graceful_panel_monitor_format_memory_label (double usagePercent)
+{
+    g_autofree char* percent = graceful_panel_monitor_format_percent (usagePercent);
+
+    return g_strdup_printf ("MEM %s", percent);
+}
+
+char* graceful_panel_monitor_format_cpu_label (double usagePercent, gboolean hasTemperature, double temperatureCelsius)
+{
+    g_autofree char* percent = graceful_panel_monitor_format_percent (usagePercent);
+
+    if (hasTemperature) {
+        return g_strdup_printf ("CPU %s %.2f \302\260C", percent, temperatureCelsius);
+    }
+
+    return g_strdup_printf ("CPU %s", percent);
+}
+
 gboolean graceful_panel_monitor_parse_net_dev (const char* text, GracefulPanelNetworkSample* sample)
 {
     g_auto(GStrv) lines = NULL;
