@@ -44,6 +44,29 @@ static void set_atom_property (Display* display, Window window, const char* prop
     );
 }
 
+static void request_wm_state (Display* display, Window window, Atom firstState, Atom secondState)
+{
+    XEvent event = { 0 };
+
+    event.xclient.type = ClientMessage;
+    event.xclient.message_type = intern_atom (display, "_NET_WM_STATE");
+    event.xclient.display = display;
+    event.xclient.window = window;
+    event.xclient.format = 32;
+    event.xclient.data.l[0] = 1;
+    event.xclient.data.l[1] = (long) firstState;
+    event.xclient.data.l[2] = (long) secondState;
+    event.xclient.data.l[3] = 1;
+
+    XSendEvent (
+        display,
+        DefaultRootWindow (display),
+        False,
+        SubstructureRedirectMask | SubstructureNotifyMask,
+        &event
+    );
+}
+
 void graceful_panel_x11_calculate_bottom_strut (
     GracefulPanelX11Strut* strut,
     int screenWidth,
@@ -113,6 +136,8 @@ void graceful_panel_x11_apply_dock_window (GtkWindow* window, int panelHeight)
     states[2] = intern_atom (display, "_NET_WM_STATE_SKIP_TASKBAR");
     states[3] = intern_atom (display, "_NET_WM_STATE_SKIP_PAGER");
     set_atom_property (display, xwindow, "_NET_WM_STATE", states, G_N_ELEMENTS (states));
+    request_wm_state (display, xwindow, states[0], states[1]);
+    request_wm_state (display, xwindow, states[2], states[3]);
 
     graceful_panel_x11_calculate_bottom_strut (&strut, rootAttributes.width, rootAttributes.height, panelHeight);
     graceful_panel_x11_calculate_bottom_placement (

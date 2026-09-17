@@ -24,7 +24,7 @@
 #include "panel-layout.h"
 #include "panel-x11-protocol.h"
 
-#define PANEL_HEIGHT 40
+#define PANEL_HEIGHT 42
 #define PANEL_PROTOCOL_SYNC_INTERVAL_MS 500
 
 struct _GracefulPanelWindow
@@ -71,12 +71,18 @@ static void queue_panel_protocol_sync (GracefulPanelWindow* self)
 
 static void on_panel_window_realize (GtkWidget* widget, gpointer userData)
 {
-    queue_panel_protocol_sync (GRACEFUL_PANEL_WINDOW (widget));
+    GracefulPanelWindow* self = GRACEFUL_PANEL_WINDOW (widget);
+
+    apply_panel_protocol (self);
+    queue_panel_protocol_sync (self);
 }
 
 static void on_panel_window_map (GtkWidget* widget, gpointer userData)
 {
-    queue_panel_protocol_sync (GRACEFUL_PANEL_WINDOW (widget));
+    GracefulPanelWindow* self = GRACEFUL_PANEL_WINDOW (widget);
+
+    apply_panel_protocol (self);
+    queue_panel_protocol_sync (self);
 }
 
 static void graceful_panel_window_dispose (GObject* object)

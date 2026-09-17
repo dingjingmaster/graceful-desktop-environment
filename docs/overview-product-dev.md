@@ -23,7 +23,7 @@
 - 模块划分：`greeter/` 放 LightDM greeter 私有 UI、认证和模型；`session/` 放登录后的 session 根进程；`desktop/` 放桌面壳背景进程；`panel/` 放桌面 panel 进程；`common/` 只放 greeter/session/settings-daemon/desktop/panel 共享的纯 C 公共库。
 - 进程/线程/内核边界：`graceful-greeter` 是由 LightDM 启动的独立 greeter 进程；`graceful-session` 是由登录管理器启动的用户 session 根进程；`graceful-desktop` 是 session 默认核心命令；`graceful-panel` 是用户 session 中的 panel 进程。
 - 客户端/服务端/驱动边界：greeter 通过 `liblightdm-gobject-1` 与 LightDM daemon 交互。
-- 数据流：LightDM 用户列表/GTK 密码输入控件 -> greeter 登录模型 -> LightDM PAM prompt response；session 定义/环境 -> session manager -> GSubprocess；壁纸目录 -> wallpaper store -> wallpaper view -> GTK snapshot；panel 内置 item -> panel layout -> panel window。
+- 数据流：LightDM 用户列表/GTK 密码输入控件 -> greeter 登录模型 -> LightDM PAM prompt response；session 定义/环境 -> session manager -> GSubprocess；壁纸目录 -> wallpaper store -> wallpaper view -> GTK snapshot；panel 内置 item -> panel layout -> panel window；X11 `_NET_CLIENT_LIST`/窗口属性 -> panel window list -> task area 图标按钮和 hover 预览。
 - 控制流：GTK application activate -> LightDM daemon connect -> 用户触发 authenticate -> prompt response -> authentication-complete -> start session -> `graceful-session` 启动核心命令 -> `graceful-desktop` 绘制背景 -> 核心命令退出后 session 结束。
 - 外部依赖：LightDM、PAM、系统 session desktop 文件。
 
@@ -38,10 +38,11 @@
 | desktop environment variables | graceful-desktop | 用户环境 | 环境变量为空或非法时回落默认值 | `GRACEFUL_DESKTOP_WALLPAPER_DIR`、`GRACEFUL_DESKTOP_WALLPAPER_INTERVAL` |
 | panel built-in layout | graceful-panel | 代码内置 | 第一版无运行时配置 | 固定单 panel 与内置 item 顺序 |
 | EWMH desktop/dock window | graceful-desktop / graceful-panel | X11/Xwayland 窗口管理器 | 每 500ms 按 X root 几何重新同步 | desktop 使用 desktop window 类型；panel 使用 dock window 类型和底部 strut |
+| EWMH task list | graceful-panel | X11/Xwayland 窗口管理器和客户端窗口 | 过滤 desktop/dock/skip-taskbar/unmapped 窗口 | panel 任务区显示普通应用窗口图标，hover 时用可见区域截图生成缩略图 |
 
 ## 4. 数据与配置
 
-- 核心数据结构：`GracefulGreeterLoginModel` 保存用户名、密码和 session key；`GracefulSessionDefinition`、`GracefulSessionEnvironment`、`GracefulSessionProcess`、`GracefulSessionManager` 分别管理 session 定义、环境变量、子进程和编排；`GracefulDesktopConfig`、`GracefulWallpaperStore`、`GracefulWallpaperTransition`、`GracefulWallpaperView`、`GracefulDesktopApp` 分别管理桌面配置、壁纸目录、过渡进度、绘制和 GTK 应用主体；`GracefulPanelApp`、`GracefulPanelWindow`、`GracefulPanelLayout` 和各内置 item 管理 panel 应用、窗口、布局和显示组件。
+- 核心数据结构：`GracefulGreeterLoginModel` 保存用户名、密码和 session key；`GracefulSessionDefinition`、`GracefulSessionEnvironment`、`GracefulSessionProcess`、`GracefulSessionManager` 分别管理 session 定义、环境变量、子进程和编排；`GracefulDesktopConfig`、`GracefulWallpaperStore`、`GracefulWallpaperTransition`、`GracefulWallpaperView`、`GracefulDesktopApp` 分别管理桌面配置、壁纸目录、过渡进度、绘制和 GTK 应用主体；`GracefulPanelApp`、`GracefulPanelWindow`、`GracefulPanelLayout`、`GracefulPanelWindowInfo`、`GracefulPanelWindowList` 和各内置 item 管理 panel 应用、窗口、布局、任务窗口模型/读取和显示组件。
 - 配置文件/参数：`greeter/graceful-greeter.desktop` 描述 LightDM greeter 入口；`/etc/lightdm/graceful-greeter.conf` 可配置 `[Greeter] Background=/path/to/image`；`session/graceful.desktop` 描述 Display Manager session 入口；`graceful-session --session=SESSION -- [COMMAND...]` 可指定 session 和核心命令；`GRACEFUL_DESKTOP_WALLPAPER_DIR` 和 `GRACEFUL_DESKTOP_WALLPAPER_INTERVAL` 控制桌面壁纸目录和切换间隔。
 - 持久化数据：无。
 - 迁移/兼容规则：无历史数据迁移。
@@ -58,6 +59,7 @@
 | session 生命周期 | 核心命令启动失败、异常退出、环境变量错误会导致登录后立即退出 | session 单元测试、命令行冒烟、后续 LightDM 集成验证 | docs/dev/modules/session.md |
 | desktop 背景窗口 | GTK 全屏窗口在不同 WM/Wayland 组合下的层级和覆盖行为 | desktop 单元测试、构建、图形环境冒烟 | docs/dev/modules/desktop.md |
 | panel 窗口层级 | GTK 普通窗口在不同 WM/Wayland 组合下不一定具备 dock/layer 行为 | panel 单元测试、构建、图形环境冒烟 | docs/dev/modules/panel.md |
+| panel 任务预览 | X11 窗口截图可能因窗口状态触发异步错误；原生 Wayland 不允许普通客户端直接抓取其他窗口 | X11 error trap、任务模型单元测试、测试机 hover 冒烟 | docs/dev/modules/panel.md |
 
 ## 6. 构建与验证
 
@@ -107,3 +109,4 @@
 | 2026-09-17 | 新增 GTK4/GObject desktop 背景进程架构与验证入口 | 建立 desktop 子系统开发基线 | docs/dev/modules/desktop.md |
 | 2026-09-17 | 新增 GTK4/GObject panel 架构与验证入口 | 建立 panel 子系统开发基线 | docs/dev/modules/panel.md |
 | 2026-09-17 | 新增 desktop/panel X11/Xwayland EWMH 窗口协议同步 | desktop 作为桌面窗口铺满 root；panel 作为底部 dock 声明 strut 并跟随 root 几何变化 | docs/dev/modules/desktop.md, docs/dev/modules/panel.md |
+| 2026-09-17 | 新增 panel X11/Xwayland 任务窗口模型、图标和 hover 预览 | panel 任务区可显示普通应用窗口，空任务区不再显示占位文案 | docs/dev/modules/panel.md |

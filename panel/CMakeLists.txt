@@ -35,6 +35,10 @@ add_library(graceful-panel-core STATIC
     panel-volume-item.h
     panel-window.c
     panel-window.h
+    panel-window-list.c
+    panel-window-list.h
+    panel-window-model.c
+    panel-window-model.h
     panel-x11-protocol.c
     panel-x11-protocol.h
 )
@@ -62,5 +66,11 @@ add_executable(panel-x11-protocol-test
 )
 target_link_libraries(panel-x11-protocol-test graceful-panel-core)
 add_test(NAME panel-x11-protocol-test COMMAND panel-x11-protocol-test)
+
+add_executable(panel-window-model-test
+    tests/test-panel-window-model.c
+)
+target_link_libraries(panel-window-model-test graceful-panel-core)
+add_test(NAME panel-window-model-test COMMAND panel-window-model-test)
 
 install(TARGETS graceful-panel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

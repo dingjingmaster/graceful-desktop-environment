@@ -23,3 +23,5 @@
 | 2026-09-17 | L2 | system,public-contract | desktop | module | [modules/desktop.md](modules/desktop.md) | 已完成 | 新增 GTK4/GObject `graceful-desktop` 第一阶段，绘制随机壁纸背景并支持整图渐变切换。 |
 | 2026-09-17 | L2 | system,public-contract | panel | module | [modules/panel.md](modules/panel.md) | 已完成 | 新增 GTK4/GObject `graceful-panel` 第一阶段，固定单 panel 与内置模块布局。 |
 | 2026-09-17 | L2 | system,public-contract | desktop,panel | fix/module | [modules/desktop.md](modules/desktop.md), [modules/panel.md](modules/panel.md) | 已完成 | 修复 desktop/panel 作为普通 GTK 窗口运行的问题；X11/Xwayland 下设置 EWMH desktop/dock 角色、底部 strut，并按 root 几何持续同步尺寸和位置。 |
+| 2026-09-17 | L2 | system,public-contract | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 改进 panel 任务区：移除空任务文案，X11/Xwayland 下显示普通应用窗口图标，hover 显示缩略图/兜底预览，并增加半透明磨砂观感。 |
+| 2026-09-17 | L2 | bug-e2,system,lifecycle,public-contract | panel | fix/module | [modules/panel.md](modules/panel.md) | 已完成 | 修复 panel 任务预览闪烁和层级不够稳的问题：任务集合不变时不重建按钮，移除任务 tooltip，并通过 EWMH client message 强化 above/dock 状态。 |
