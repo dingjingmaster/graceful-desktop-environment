@@ -34,6 +34,9 @@ static void environment_sets_session_variables (void)
     g_assert_cmpstr (g_environ_getenv (envp, "DESKTOP_SESSION"), ==, "graceful");
     g_assert_cmpstr (g_environ_getenv (envp, "GDMSESSION"), ==, "graceful");
     g_assert_cmpstr (g_environ_getenv (envp, "XDG_CURRENT_DESKTOP"), ==, "Graceful");
+    g_assert_cmpstr (g_environ_getenv (envp, "GTK_IM_MODULE"), ==, "ibus");
+    g_assert_cmpstr (g_environ_getenv (envp, "QT_IM_MODULE"), ==, "ibus");
+    g_assert_cmpstr (g_environ_getenv (envp, "XMODIFIERS"), ==, "@im=ibus");
 }
 
 static void environment_uses_defaults_for_empty_values (void)

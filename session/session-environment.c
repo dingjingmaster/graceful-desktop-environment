@@ -87,6 +87,9 @@ GStrv graceful_session_environment_build (GracefulSessionEnvironment* self, cons
     envp = g_environ_setenv (envp, "DESKTOP_SESSION", self->sessionId, TRUE);
     envp = g_environ_setenv (envp, "GDMSESSION", self->sessionId, TRUE);
     envp = g_environ_setenv (envp, "XDG_CURRENT_DESKTOP", self->currentDesktop, TRUE);
+    envp = g_environ_setenv (envp, "GTK_IM_MODULE", "ibus", TRUE);
+    envp = g_environ_setenv (envp, "QT_IM_MODULE", "ibus", TRUE);
+    envp = g_environ_setenv (envp, "XMODIFIERS", "@im=ibus", TRUE);
 
     return envp;
 }

@@ -60,7 +60,7 @@ static GStrv graceful_session_build_default_command (void)
         return g_strsplit (command, " ", -1);
     }
 
-    return g_strsplit ("graceful-desktop", " ", -1);
+    return NULL;
 }
 
 int main (int argc, char* argv[])

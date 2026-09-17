@@ -79,6 +79,33 @@ static void graceful_session_process_apply_environment (GSubprocessLauncher* lau
     }
 }
 
+static void graceful_session_process_wait_subprocess_done (
+    GObject* sourceObject,
+    GAsyncResult* result,
+    gpointer userData
+)
+{
+    GSubprocess* subprocess = G_SUBPROCESS (sourceObject);
+    g_autoptr(GTask) task = userData;
+    GracefulSessionProcess* self = g_task_get_source_object (task);
+    g_autoptr(GError) error = NULL;
+    gboolean waitOk = g_subprocess_wait_finish (subprocess, result, &error);
+
+    if (!waitOk) {
+        g_task_return_error (task, g_steal_pointer (&error));
+        return;
+    }
+
+    if (g_subprocess_get_if_exited (subprocess)) {
+        self->exitStatus = g_subprocess_get_exit_status (subprocess);
+        g_task_return_boolean (task, self->exitStatus == 0);
+        return;
+    }
+
+    self->exitStatus = -1;
+    g_task_return_boolean (task, FALSE);
+}
+
 GracefulSessionProcess* graceful_session_process_new (const char* name, const char* const* argv, const char* const* envp)
 {
     GracefulSessionProcess* self = g_object_new (GRACEFUL_TYPE_SESSION_PROCESS, NULL);
@@ -136,6 +163,35 @@ gboolean graceful_session_process_wait (GracefulSessionProcess* self, GCancellab
 
     self->exitStatus = -1;
     return FALSE;
+}
+
+void graceful_session_process_wait_async (
+    GracefulSessionProcess* self,
+    GCancellable* cancellable,
+    GAsyncReadyCallback callback,
+    gpointer userData
+)
+{
+    g_autoptr(GTask) task = NULL;
+
+    g_return_if_fail (GRACEFUL_IS_SESSION_PROCESS (self));
+    g_return_if_fail (self->subprocess != NULL);
+
+    task = g_task_new (self, cancellable, callback, userData);
+    g_subprocess_wait_async (
+        self->subprocess,
+        cancellable,
+        graceful_session_process_wait_subprocess_done,
+        g_object_ref (task)
+    );
+}
+
+gboolean graceful_session_process_wait_finish (GracefulSessionProcess* self, GAsyncResult* result, GError** error)
+{
+    g_return_val_if_fail (GRACEFUL_IS_SESSION_PROCESS (self), FALSE);
+    g_return_val_if_fail (g_task_is_valid (result, self), FALSE);
+
+    return g_task_propagate_boolean (G_TASK (result), error);
 }
 
 void graceful_session_process_terminate (GracefulSessionProcess* self)

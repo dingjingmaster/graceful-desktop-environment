@@ -8,6 +8,8 @@ pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 
 add_library(graceful-session-core STATIC
+    session-component.c
+    session-component.h
     session-definition.c
     session-definition.h
     session-environment.c
@@ -34,6 +36,12 @@ add_executable(session-environment-test
 )
 target_link_libraries(session-environment-test graceful-session-core)
 add_test(NAME session-environment-test COMMAND session-environment-test)
+
+add_executable(session-component-test
+    tests/test-session-component.c
+)
+target_link_libraries(session-component-test graceful-session-core)
+add_test(NAME session-component-test COMMAND session-component-test)
 
 add_executable(session-process-test
     tests/test-session-process.c

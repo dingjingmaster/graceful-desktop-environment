@@ -32,3 +32,4 @@
 | 2026-09-17 | L2 | system,lifecycle,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | Power 按钮新增关机、重启、登出、锁屏菜单，并通过受控系统命令执行对应动作。 |
 | 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 右侧状态区移除网络/声音按钮，新增 workspace 指示和 tray 展开按钮/透明 popover 骨架；无托盘项隐藏按钮，菜单开合带箭头旋转动画。 |
 | 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | panel 在 tray 和 Power 之间新增网速、CPU、内存实时监控项，读取 `/proc`/`/sys` 并紧凑显示。 |
+| 2026-09-17 | L3 | system,lifecycle,public-contract,product-flow | session | plan/summary/module | [3-plan-session-components.md](3-plan-session-components.md), [3-summary-session-components.md](3-summary-session-components.md), [modules/session.md](modules/session.md) | 已完成 | session 默认编排 mutter、ibus/rime、desktop 和 panel，保留显式命令调试路径。 |

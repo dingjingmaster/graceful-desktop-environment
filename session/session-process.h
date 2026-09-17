@@ -40,6 +40,13 @@ G_DECLARE_FINAL_TYPE (
 GracefulSessionProcess* graceful_session_process_new (const char* name, const char* const* argv, const char* const* envp);
 gboolean graceful_session_process_start (GracefulSessionProcess* self, GError** error);
 gboolean graceful_session_process_wait (GracefulSessionProcess* self, GCancellable* cancellable, GError** error);
+void graceful_session_process_wait_async (
+    GracefulSessionProcess* self,
+    GCancellable* cancellable,
+    GAsyncReadyCallback callback,
+    gpointer userData
+);
+gboolean graceful_session_process_wait_finish (GracefulSessionProcess* self, GAsyncResult* result, GError** error);
 void graceful_session_process_terminate (GracefulSessionProcess* self);
 int graceful_session_process_get_exit_status (GracefulSessionProcess* self);
 

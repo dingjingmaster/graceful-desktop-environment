@@ -60,6 +60,47 @@ static void process_rejects_missing_command (void)
     g_assert_error (error, G_IO_ERROR, G_IO_ERROR_INVALID_ARGUMENT);
 }
 
+typedef struct _AsyncWaitFixture AsyncWaitFixture;
+
+struct _AsyncWaitFixture
+{
+    GMainLoop* loop;
+    GracefulSessionProcess* process;
+    gboolean ok;
+    GError* error;
+};
+
+static void process_async_wait_done (GObject* sourceObject, GAsyncResult* result, gpointer userData)
+{
+    AsyncWaitFixture* fixture = userData;
+
+    g_assert_true (GRACEFUL_IS_SESSION_PROCESS (sourceObject));
+    fixture->ok = graceful_session_process_wait_finish (fixture->process, result, &fixture->error);
+    g_main_loop_quit (fixture->loop);
+}
+
+static void process_reports_async_success_exit_status (void)
+{
+    const char* argv[] = { "/bin/sh", "-c", "exit 0", NULL };
+    g_autoptr(GMainLoop) loop = g_main_loop_new (NULL, FALSE);
+    g_autoptr(GracefulSessionProcess) process = graceful_session_process_new ("async-success", argv, NULL);
+    AsyncWaitFixture fixture = { 0 };
+    g_autoptr(GError) error = NULL;
+
+    fixture.loop = loop;
+    fixture.process = process;
+
+    g_assert_true (graceful_session_process_start (process, &error));
+    g_assert_no_error (error);
+
+    graceful_session_process_wait_async (process, NULL, process_async_wait_done, &fixture);
+    g_main_loop_run (loop);
+
+    g_assert_no_error (fixture.error);
+    g_assert_true (fixture.ok);
+    g_assert_cmpint (graceful_session_process_get_exit_status (process), ==, 0);
+}
+
 int main (int argc, char* argv[])
 {
     g_test_init (&argc, &argv, NULL);
@@ -67,6 +108,7 @@ int main (int argc, char* argv[])
     g_test_add_func ("/session/process/reports-success-exit-status", process_reports_success_exit_status);
     g_test_add_func ("/session/process/reports-failure-exit-status", process_reports_failure_exit_status);
     g_test_add_func ("/session/process/rejects-missing-command", process_rejects_missing_command);
+    g_test_add_func ("/session/process/reports-async-success-exit-status", process_reports_async_success_exit_status);
 
     return g_test_run ();
 }

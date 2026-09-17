@@ -3,7 +3,7 @@
 > 文档元数据
 > - 文档版本：v1.0.0
 > - 最后更新：2026-09-17
-> - 更新来源：docs/dev/modules/desktop.md
+> - 更新来源：docs/dev/modules/session.md
 > - 关联产品文档：docs/overview-product.md
 
 ## 1. 技术栈
@@ -21,10 +21,10 @@
 ## 2. 架构边界
 
 - 模块划分：`greeter/` 放 LightDM greeter 私有 UI、认证和模型；`session/` 放登录后的 session 根进程；`desktop/` 放桌面壳背景进程；`panel/` 放桌面 panel 进程；`common/` 只放 greeter/session/settings-daemon/desktop/panel 共享的纯 C 公共库。
-- 进程/线程/内核边界：`graceful-greeter` 是由 LightDM 启动的独立 greeter 进程；`graceful-session` 是由登录管理器启动的用户 session 根进程；`graceful-desktop` 是 session 默认核心命令；`graceful-panel` 是用户 session 中的 panel 进程。
+- 进程/线程/内核边界：`graceful-greeter` 是由 LightDM 启动的独立 greeter 进程；`graceful-session` 是由登录管理器启动的用户 session 根进程；默认 session 组件包含 `mutter --replace`、`ibus-daemon --daemonize --xim`、`ibus engine rime`、`graceful-desktop` 和 `graceful-panel`。
 - 客户端/服务端/驱动边界：greeter 通过 `liblightdm-gobject-1` 与 LightDM daemon 交互。
 - 数据流：LightDM 用户列表/GTK 密码输入控件 -> greeter 登录模型 -> LightDM PAM prompt response；session 定义/环境 -> session manager -> GSubprocess；壁纸目录 -> wallpaper store -> wallpaper view -> GTK snapshot；panel 内置 item -> panel layout -> panel window；X11 `_NET_CLIENT_LIST`/窗口属性 -> panel window list -> task area 图标按钮和 hover 预览。
-- 控制流：GTK application activate -> LightDM daemon connect -> 用户触发 authenticate -> prompt response -> authentication-complete -> start session -> `graceful-session` 启动核心命令 -> `graceful-desktop` 绘制背景 -> 核心命令退出后 session 结束。
+- 控制流：GTK application activate -> LightDM daemon connect -> 用户触发 authenticate -> prompt response -> authentication-complete -> start session -> `graceful-session` 设置环境并启动默认组件 -> mutter 管理窗口、desktop 绘制背景、panel 提供桌面入口 -> 任一必需后台组件退出后 session 清理其它组件并结束。
 - 外部依赖：LightDM、PAM、系统 session desktop 文件。
 
 ## 3. 关键接口
@@ -42,8 +42,8 @@
 
 ## 4. 数据与配置
 
-- 核心数据结构：`GracefulGreeterLoginModel` 保存用户名、密码和 session key；`GracefulSessionDefinition`、`GracefulSessionEnvironment`、`GracefulSessionProcess`、`GracefulSessionManager` 分别管理 session 定义、环境变量、子进程和编排；`GracefulDesktopConfig`、`GracefulWallpaperStore`、`GracefulWallpaperTransition`、`GracefulWallpaperView`、`GracefulDesktopApp` 分别管理桌面配置、壁纸目录、过渡进度、绘制和 GTK 应用主体；`GracefulPanelApp`、`GracefulPanelWindow`、`GracefulPanelLayout`、`GracefulPanelWindowInfo`、`GracefulPanelWindowList` 和各内置 item 管理 panel 应用、窗口、布局、任务窗口模型/读取和显示组件。
-- 配置文件/参数：`greeter/graceful-greeter.desktop` 描述 LightDM greeter 入口；`/etc/lightdm/graceful-greeter.conf` 可配置 `[Greeter] Background=/path/to/image`；`session/graceful.desktop` 描述 Display Manager session 入口；`graceful-session --session=SESSION -- [COMMAND...]` 可指定 session 和核心命令；`GRACEFUL_DESKTOP_WALLPAPER_DIR` 和 `GRACEFUL_DESKTOP_WALLPAPER_INTERVAL` 控制桌面壁纸目录和切换间隔。
+- 核心数据结构：`GracefulGreeterLoginModel` 保存用户名、密码和 session key；`GracefulSessionDefinition`、`GracefulSessionEnvironment`、`GracefulSessionComponent`、`GracefulSessionProcess`、`GracefulSessionManager` 分别管理 session 定义、环境变量、默认组件、子进程和编排；`GracefulDesktopConfig`、`GracefulWallpaperStore`、`GracefulWallpaperTransition`、`GracefulWallpaperView`、`GracefulDesktopApp` 分别管理桌面配置、壁纸目录、过渡进度、绘制和 GTK 应用主体；`GracefulPanelApp`、`GracefulPanelWindow`、`GracefulPanelLayout`、`GracefulPanelWindowInfo`、`GracefulPanelWindowList` 和各内置 item 管理 panel 应用、窗口、布局、任务窗口模型/读取和显示组件。
+- 配置文件/参数：`greeter/graceful-greeter.desktop` 描述 LightDM greeter 入口；`/etc/lightdm/graceful-greeter.conf` 可配置 `[Greeter] Background=/path/to/image`；`session/graceful.desktop` 描述 Display Manager session 入口；`graceful-session --session=SESSION -- [COMMAND...]` 可指定 session 和单命令调试入口；`GRACEFUL_SESSION_COMMAND` 可覆盖默认组件编排；`GRACEFUL_DESKTOP_WALLPAPER_DIR` 和 `GRACEFUL_DESKTOP_WALLPAPER_INTERVAL` 控制桌面壁纸目录和切换间隔。
 - 持久化数据：无。
 - 迁移/兼容规则：无历史数据迁移。
 - 敏感信息处理：密码不写日志、不持久化；认证失败和 reset 时清空模型密码。
@@ -56,7 +56,7 @@
 | ABI/API/协议 | LightDM greeter API、xgreeters desktop entry | CMake 构建链接、安装规则审查 | docs/dev/1-summary-greeter.md |
 | 权限/系统调用 | 登录认证由 LightDM/PAM 承担 | 当前未执行真实登录；后续测试机集成验证 | docs/dev/1-summary-greeter.md |
 | 显示几何 | 裸 X 下无窗口管理器，GTK fullscreen 不保证覆盖 root window | X11 root/window 几何检查 | docs/dev/modules/greeter.md |
-| session 生命周期 | 核心命令启动失败、异常退出、环境变量错误会导致登录后立即退出 | session 单元测试、命令行冒烟、后续 LightDM 集成验证 | docs/dev/modules/session.md |
+| session 生命周期 | 必需组件启动失败或异常退出会导致登录后退出；输入法可选组件失败只警告 | session 单元测试、命令行冒烟、后续 LightDM 集成验证 | docs/dev/modules/session.md |
 | desktop 背景窗口 | GTK 全屏窗口在不同 WM/Wayland 组合下的层级和覆盖行为 | desktop 单元测试、构建、图形环境冒烟 | docs/dev/modules/desktop.md |
 | panel 窗口层级 | GTK 普通窗口在不同 WM/Wayland 组合下不一定具备 dock/layer 行为 | panel 单元测试、构建、图形环境冒烟 | docs/dev/modules/panel.md |
 | panel 任务预览 | X11 窗口截图可能因窗口状态触发异步错误；原生 Wayland 不允许普通客户端直接抓取其他窗口 | X11 error trap、任务模型单元测试、测试机 hover 冒烟 | docs/dev/modules/panel.md |
@@ -97,6 +97,7 @@
 - 关键任务文档：
   - docs/dev/1-summary-greeter.md：LightDM greeter 第一版实现总结。
   - docs/dev/2-summary-session.md：Session 根进程第一版实现总结。
+  - docs/dev/3-summary-session-components.md：Session 默认桌面组件编排总结。
   - docs/dev/modules/desktop.md：Desktop 背景进程模块上下文。
   - docs/dev/modules/panel.md：Panel 进程模块上下文。
 
@@ -110,3 +111,4 @@
 | 2026-09-17 | 新增 GTK4/GObject panel 架构与验证入口 | 建立 panel 子系统开发基线 | docs/dev/modules/panel.md |
 | 2026-09-17 | 新增 desktop/panel X11/Xwayland EWMH 窗口协议同步 | desktop 作为桌面窗口铺满 root；panel 作为底部 dock 声明 strut 并跟随 root 几何变化 | docs/dev/modules/desktop.md, docs/dev/modules/panel.md |
 | 2026-09-17 | 新增 panel X11/Xwayland 任务窗口模型、图标和 hover 预览 | panel 任务区可显示普通应用窗口，空任务区不再显示占位文案 | docs/dev/modules/panel.md |
+| 2026-09-17 | session 默认拉起 mutter、ibus/rime、desktop 和 panel | Graceful session 具备最小桌面环境启动链 | docs/dev/3-summary-session-components.md |
