@@ -38,6 +38,8 @@ add_library(graceful-panel-core STATIC
     panel-network-item.h
     panel-pinned-apps.c
     panel-pinned-apps.h
+    panel-power-action.c
+    panel-power-action.h
     panel-power-item.c
     panel-power-item.h
     panel-status-area.c
@@ -86,6 +88,12 @@ add_executable(panel-launcher-command-test
 )
 target_link_libraries(panel-launcher-command-test graceful-panel-core)
 add_test(NAME panel-launcher-command-test COMMAND panel-launcher-command-test)
+
+add_executable(panel-power-action-test
+    tests/test-panel-power-action.c
+)
+target_link_libraries(panel-power-action-test graceful-panel-core)
+add_test(NAME panel-power-action-test COMMAND panel-power-action-test)
 
 add_executable(panel-x11-protocol-test
     tests/test-panel-x11-protocol.c

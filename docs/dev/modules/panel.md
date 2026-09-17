@@ -18,6 +18,7 @@
 
 - 用户可见行为：`graceful-panel` 启动 GTK4 应用，创建半透明磨砂观感的无边框 panel 窗口；左侧显示 logo 菜单按钮，点击后弹出开始菜单，提供搜索框、固定应用和按 desktop 分类分组的应用列表；固定应用可右键取消固定，其他应用可右键固定，应用列表项单击启动；左侧还显示终端、文件、设置启动器；中间任务区为空时不显示文案，有普通应用窗口时显示对应窗口图标按钮，鼠标悬停时显示窗口缩略图或标题/图标兜底；右侧显示网络、音量、电源图标和两行本地时间。
 - 启动器行为：终端按钮按 `graceful-terminal`、`gnome-terminal`、`terminator`、`mate-terminal` 顺序查找并启动；文件按钮按 `graceful-file`、`nautilus`、`caja` 顺序查找并启动；设置按钮按 `graceful-settings`、`gnome-control-center` 顺序查找并启动。
+- 电源菜单行为：点击 Power 按钮弹出菜单，提供关机、重启、登出、锁屏；关机/重启通过 `systemctl poweroff/reboot` 执行，登出优先 `loginctl terminate-session $XDG_SESSION_ID` 并回退到 `loginctl terminate-user $USER`，锁屏按 `loginctl lock-session`、`gnome-screensaver-command -l`、`xdg-screensaver lock` 顺序尝试。
 - 开始菜单数据：通过 GIO `GAppInfo` 收集系统应用，通过 `GDesktopAppInfo` 读取 desktop `Categories` 并映射为菜单分组；`GracefulPanelAppEntry` 负责应用名称/描述/图标/启动信息、分类和搜索匹配，应用启动调用 GIO。
 - 窗口协议：X11/Xwayland 下设置 `_NET_WM_WINDOW_TYPE_DOCK`、sticky/skip taskbar/skip pager/above 状态和底部 `_NET_WM_STRUT_PARTIAL`；运行期间每 500ms 按 X root 几何重新同步 panel 宽度、底部位置和保留区域。
 - 任务区数据：X11/Xwayland 下读取 `_NET_CLIENT_LIST`，过滤 desktop/dock/skip-taskbar/unmapped 窗口；优先使用 `_NET_WM_ICON` 作为任务图标；hover 预览使用 X root 可见区域截图，失败时回落到标题和图标。
@@ -26,7 +27,7 @@
 
 ## 3. 关键约束
 
-- 安全边界：应用启动仅通过 GIO desktop entry 执行；除固定应用配置外，不修改其他用户状态。
+- 安全边界：应用启动仅通过 GIO desktop entry 或受控候选命令执行；Power 菜单点击具体动作后会调用系统电源/session 命令，测试和部署过程不自动触发这些动作；除固定应用配置外，不修改其他用户状态。
 - 兼容性要求：构建依赖 `gtk4`、`gtk4-x11`、`x11`、`glib-2.0`、`gobject-2.0`、`gio-2.0`、`gio-unix-2.0`；主体使用 GObject 分模块，便于后续扩展真实菜单、任务列表和状态控制。
 - 性能/稳定性要求：时钟、dock 协议和任务区均有定时刷新；GObject 引用、定时器、任务窗口信息、popover 父子关系和 X11 错误陷阱需要正确释放/处理。
 - 禁止触碰范围：不把 desktop 背景绘制、session 编排或 greeter 认证逻辑放入 panel 模块。
@@ -36,7 +37,7 @@
 | 场景 | 验证命令/步骤 | 备注 |
 |------|---------------|------|
 | 构建 | `cmake -S . -B build && cmake --build build` | 验证 GTK4/GLib/GIO API 和链接 |
-| 单元测试 | `ctest --test-dir build --output-on-failure` | 覆盖启动器候选命令解析、时钟模型格式化、dock strut 计算、任务窗口过滤、标题回退、开始菜单应用搜索/分类和固定应用持久化 |
+| 单元测试 | `ctest --test-dir build --output-on-failure` | 覆盖启动器候选命令解析、Power action 命令映射、时钟模型格式化、dock strut 计算、任务窗口过滤、标题回退、开始菜单应用搜索/分类和固定应用持久化 |
 | 命令行冒烟 | `build/panel/graceful-panel` | 需要图形环境 |
 | 集成实测 | 登录 Graceful session 后启动 panel | 后续 session 编排接入后执行 |
 
@@ -52,6 +53,7 @@
 | 2026-09-17 | task | 基于 Budgie Menu 的简洁理念实现开始菜单第一版 | 新增 GTK4/GObject 开始菜单 popover、应用 entry/index 模型、搜索、固定应用和应用启动 | 本地构建/测试通过；测试机点击 logo 后出现开始菜单窗口 |
 | 2026-09-17 | task | 开始菜单需要支持固定/取消固定和按 desktop 分类显示 | 新增固定应用配置 `~/.config/graceful/panel/pinned-apps.ini`；开始菜单支持 pinned 右键取消固定、应用列表右键固定、分类显示和单击启动 | 本地构建/测试通过 |
 | 2026-09-17 | task | panel 启动器需要真实执行程序，时钟需要显示更详细 | 启动器按 graceful/桌面默认候选命令顺序解析并启动；时钟改为两行显示 `HH:MM:SS` 和 `YYYY/MM/DD 周X` | 本地构建/测试通过 |
+| 2026-09-17 | task | Power 按钮需要提供关机、重启、登出、锁屏 | 新增 Power popover 菜单和 `panel-power-action` 命令映射/执行模块 | 本地构建/测试通过；未自动触发真实电源/session 动作 |
 
 ## 6. 变更记录
 

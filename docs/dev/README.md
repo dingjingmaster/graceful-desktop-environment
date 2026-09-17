@@ -29,3 +29,4 @@
 | 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 在 panel 中新增开始菜单第一版：GTK4 popover、应用搜索、固定应用、应用列表和 GIO 应用启动。 |
 | 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 优化开始菜单：固定应用持久化到 `~/.config/graceful/panel/pinned-apps.ini`，支持右键 pin/unpin、按 desktop 分类分组显示和单击启动。 |
 | 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 优化 panel 启动器和时钟：终端/文件/设置按钮按候选命令 fallback 启动，时钟改为两行显示秒、日期和星期。 |
+| 2026-09-17 | L2 | system,lifecycle,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | Power 按钮新增关机、重启、登出、锁屏菜单，并通过受控系统命令执行对应动作。 |
