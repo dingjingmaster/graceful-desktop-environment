@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Graceful
+Comment=Graceful Desktop Environment session
+Exec=graceful-session
+Type=Application
+DesktopNames=Graceful

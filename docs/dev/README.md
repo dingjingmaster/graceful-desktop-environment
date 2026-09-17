@@ -19,3 +19,4 @@
 | 日期 | 级别 | 风险标签 | 模块 | 类型 | 关联文档 | 状态 | 摘要 |
 |------|------|----------|------|------|----------|------|------|
 | 2026-09-16 | L3 | system,lifecycle,public-contract | greeter | research/plan/summary/module | [1-research-greeter.md](1-research-greeter.md), [1-plan-greeter.md](1-plan-greeter.md), [1-summary-greeter.md](1-summary-greeter.md), [modules/greeter.md](modules/greeter.md) | 已完成 | 基于 GTK4 与 liblightdm-gobject 实现 LightDM greeter 最小登录闭环。 |
+| 2026-09-17 | L3 | system,lifecycle,public-contract,product-flow | session | research/plan/summary/module | [2-research-session.md](2-research-session.md), [2-plan-session.md](2-plan-session.md), [2-summary-session.md](2-summary-session.md), [modules/session.md](modules/session.md) | 已完成 | 新增纯 C/GObject `graceful-session`，建立登录后的 session 根进程最小闭环。 |
