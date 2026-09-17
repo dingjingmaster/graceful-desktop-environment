@@ -24,13 +24,22 @@
 
 #include <glib.h>
 
-static void clock_model_formats_time_as_hours_and_minutes (void)
+static void clock_model_formats_time_with_seconds (void)
 {
     g_autoptr(GracefulPanelClockModel) model = graceful_panel_clock_model_new ();
-    g_autoptr(GDateTime) time = g_date_time_new_local (2026, 9, 17, 8, 5, 0);
+    g_autoptr(GDateTime) time = g_date_time_new_local (2026, 9, 17, 8, 5, 9);
     g_autofree char* label = graceful_panel_clock_model_format_time (model, time);
 
-    g_assert_cmpstr (label, ==, "08:05");
+    g_assert_cmpstr (label, ==, "08:05:09");
+}
+
+static void clock_model_formats_date_with_weekday (void)
+{
+    g_autoptr(GracefulPanelClockModel) model = graceful_panel_clock_model_new ();
+    g_autoptr(GDateTime) time = g_date_time_new_local (2026, 9, 17, 8, 5, 9);
+    g_autofree char* label = graceful_panel_clock_model_format_date (model, time);
+
+    g_assert_cmpstr (label, ==, "2026/09/17 周四");
 }
 
 int main (int argc, char* argv[])
@@ -38,8 +47,12 @@ int main (int argc, char* argv[])
     g_test_init (&argc, &argv, NULL);
 
     g_test_add_func (
-        "/panel/clock-model/formats-time-as-hours-and-minutes",
-        clock_model_formats_time_as_hours_and_minutes
+        "/panel/clock-model/formats-time-with-seconds",
+        clock_model_formats_time_with_seconds
+    );
+    g_test_add_func (
+        "/panel/clock-model/formats-date-with-weekday",
+        clock_model_formats_date_with_weekday
     );
 
     return g_test_run ();

@@ -28,7 +28,8 @@ struct _GracefulPanelClockItem
     GtkBox parentInstance;
 
     GracefulPanelClockModel* model;
-    GtkWidget* label;
+    GtkWidget* timeLabel;
+    GtkWidget* dateLabel;
     guint timerId;
 };
 
@@ -37,9 +38,11 @@ G_DEFINE_TYPE (GracefulPanelClockItem, graceful_panel_clock_item, GTK_TYPE_BOX)
 static void graceful_panel_clock_item_update (GracefulPanelClockItem* self)
 {
     g_autoptr(GDateTime) now = g_date_time_new_now_local ();
-    g_autofree char* text = graceful_panel_clock_model_format_time (self->model, now);
+    g_autofree char* timeText = graceful_panel_clock_model_format_time (self->model, now);
+    g_autofree char* dateText = graceful_panel_clock_model_format_date (self->model, now);
 
-    gtk_label_set_text (GTK_LABEL (self->label), text);
+    gtk_label_set_text (GTK_LABEL (self->timeLabel), timeText);
+    gtk_label_set_text (GTK_LABEL (self->dateLabel), dateText);
 }
 
 static gboolean on_clock_timer (gpointer userData)
@@ -73,16 +76,23 @@ static void graceful_panel_clock_item_class_init (GracefulPanelClockItemClass* k
 static void graceful_panel_clock_item_init (GracefulPanelClockItem* self)
 {
     self->model = graceful_panel_clock_model_new ();
-    self->label = gtk_label_new (NULL);
+    self->timeLabel = gtk_label_new (NULL);
+    self->dateLabel = gtk_label_new (NULL);
     gtk_widget_add_css_class (GTK_WIDGET (self), "panel-clock-item");
-    gtk_widget_add_css_class (self->label, "panel-item-label");
-    gtk_box_append (GTK_BOX (self), self->label);
+    gtk_widget_add_css_class (self->timeLabel, "panel-clock-time-label");
+    gtk_widget_add_css_class (self->dateLabel, "panel-clock-date-label");
+    gtk_widget_set_valign (GTK_WIDGET (self), GTK_ALIGN_CENTER);
+    gtk_widget_set_halign (self->timeLabel, GTK_ALIGN_CENTER);
+    gtk_widget_set_halign (self->dateLabel, GTK_ALIGN_CENTER);
+    gtk_box_set_spacing (GTK_BOX (self), 0);
+    gtk_box_append (GTK_BOX (self), self->timeLabel);
+    gtk_box_append (GTK_BOX (self), self->dateLabel);
 
     graceful_panel_clock_item_update (self);
-    self->timerId = g_timeout_add_seconds (30, on_clock_timer, self);
+    self->timerId = g_timeout_add_seconds (1, on_clock_timer, self);
 }
 
 GtkWidget* graceful_panel_clock_item_new (void)
 {
-    return g_object_new (GRACEFUL_TYPE_PANEL_CLOCK_ITEM, "orientation", GTK_ORIENTATION_HORIZONTAL, NULL);
+    return g_object_new (GRACEFUL_TYPE_PANEL_CLOCK_ITEM, "orientation", GTK_ORIENTATION_VERTICAL, NULL);
 }

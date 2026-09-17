@@ -26,6 +26,8 @@ add_library(graceful-panel-core STATIC
     panel-clock-model.h
     panel-clock-item.c
     panel-clock-item.h
+    panel-launcher-command.c
+    panel-launcher-command.h
     panel-launcher-box.c
     panel-launcher-box.h
     panel-layout.c
@@ -78,6 +80,12 @@ add_executable(panel-clock-model-test
 )
 target_link_libraries(panel-clock-model-test graceful-panel-core)
 add_test(NAME panel-clock-model-test COMMAND panel-clock-model-test)
+
+add_executable(panel-launcher-command-test
+    tests/test-panel-launcher-command.c
+)
+target_link_libraries(panel-launcher-command-test graceful-panel-core)
+add_test(NAME panel-launcher-command-test COMMAND panel-launcher-command-test)
 
 add_executable(panel-x11-protocol-test
     tests/test-panel-x11-protocol.c

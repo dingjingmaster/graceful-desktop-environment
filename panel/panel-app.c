@@ -210,6 +210,16 @@ static void setup_panel_style (void)
         "  color: rgba(255, 255, 255, 0.96);"
         "  font-weight: 500;"
         "}"
+        ".panel-clock-time-label {"
+        "  color: rgba(255, 255, 255, 0.98);"
+        "  font-size: 13px;"
+        "  font-weight: 700;"
+        "}"
+        ".panel-clock-date-label {"
+        "  color: rgba(255, 255, 255, 0.88);"
+        "  font-size: 10.5px;"
+        "  font-weight: 500;"
+        "}"
     );
     gtk_style_context_add_provider_for_display (
         gdk_display_get_default (),

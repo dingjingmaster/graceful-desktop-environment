@@ -38,6 +38,7 @@ G_DECLARE_FINAL_TYPE (
 
 GracefulPanelClockModel* graceful_panel_clock_model_new (void);
 char* graceful_panel_clock_model_format_time (GracefulPanelClockModel* model, GDateTime* time);
+char* graceful_panel_clock_model_format_date (GracefulPanelClockModel* model, GDateTime* time);
 
 G_END_DECLS
 

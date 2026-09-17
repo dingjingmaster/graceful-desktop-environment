@@ -46,5 +46,24 @@ char* graceful_panel_clock_model_format_time (GracefulPanelClockModel* model, GD
     g_return_val_if_fail (GRACEFUL_IS_PANEL_CLOCK_MODEL (model), NULL);
     g_return_val_if_fail (time != NULL, NULL);
 
-    return g_date_time_format (time, "%H:%M");
+    return g_date_time_format (time, "%H:%M:%S");
+}
+
+char* graceful_panel_clock_model_format_date (GracefulPanelClockModel* model, GDateTime* time)
+{
+    static const char* weekdays[] = { "周一", "周二", "周三", "周四", "周五", "周六", "周日" };
+    int dayOfWeek = 0;
+
+    g_return_val_if_fail (GRACEFUL_IS_PANEL_CLOCK_MODEL (model), NULL);
+    g_return_val_if_fail (time != NULL, NULL);
+
+    dayOfWeek = g_date_time_get_day_of_week (time);
+
+    return g_strdup_printf (
+        "%04d/%02d/%02d %s",
+        g_date_time_get_year (time),
+        g_date_time_get_month (time),
+        g_date_time_get_day_of_month (time),
+        weekdays[dayOfWeek - 1]
+    );
 }
