@@ -38,6 +38,77 @@ struct _GracefulWallpaperView
 
 G_DEFINE_TYPE (GracefulWallpaperView, graceful_wallpaper_view, GTK_TYPE_WIDGET)
 
+static void snapshot_fallback_background (GtkSnapshot* snapshot, double width, double height)
+{
+    graphene_rect_t bounds = GRAPHENE_RECT_INIT (0.0f, 0.0f, (float) width, (float) height);
+    GdkRGBA baseColor = { 0.035, 0.043, 0.055, 1.0 };
+    cairo_t* cr = NULL;
+    cairo_pattern_t* gradient = NULL;
+    double lineWidth = MAX (1.0, MIN (width, height) / 420.0);
+    double titleSize = MAX (32.0, MIN (width, height) / 11.0);
+    cairo_text_extents_t titleExtents;
+    cairo_text_extents_t subtitleExtents;
+
+    if (width <= 0.0 || height <= 0.0) {
+        return;
+    }
+
+    gtk_snapshot_append_color (snapshot, &baseColor, &bounds);
+
+    cr = gtk_snapshot_append_cairo (snapshot, &bounds);
+
+    gradient = cairo_pattern_create_linear (0.0, 0.0, width, height);
+    cairo_pattern_add_color_stop_rgba (gradient, 0.0, 0.08, 0.10, 0.13, 1.0);
+    cairo_pattern_add_color_stop_rgba (gradient, 0.46, 0.045, 0.055, 0.070, 1.0);
+    cairo_pattern_add_color_stop_rgba (gradient, 1.0, 0.12, 0.105, 0.075, 1.0);
+    cairo_rectangle (cr, 0.0, 0.0, width, height);
+    cairo_set_source (cr, gradient);
+    cairo_fill (cr);
+    cairo_pattern_destroy (gradient);
+
+    cairo_set_line_cap (cr, CAIRO_LINE_CAP_ROUND);
+    cairo_set_line_join (cr, CAIRO_LINE_JOIN_ROUND);
+
+    cairo_set_source_rgba (cr, 0.78, 0.84, 0.92, 0.18);
+    cairo_set_line_width (cr, lineWidth);
+    cairo_move_to (cr, width * -0.08, height * 0.70);
+    cairo_curve_to (cr, width * 0.18, height * 0.48, width * 0.35, height * 0.78, width * 0.58, height * 0.55);
+    cairo_curve_to (cr, width * 0.76, height * 0.37, width * 0.86, height * 0.46, width * 1.08, height * 0.25);
+    cairo_stroke (cr);
+
+    cairo_set_source_rgba (cr, 0.98, 0.78, 0.42, 0.12);
+    cairo_set_line_width (cr, lineWidth * 0.75);
+    cairo_move_to (cr, width * -0.05, height * 0.82);
+    cairo_curve_to (cr, width * 0.24, height * 0.58, width * 0.42, height * 0.88, width * 0.66, height * 0.64);
+    cairo_curve_to (cr, width * 0.82, height * 0.48, width * 0.94, height * 0.55, width * 1.05, height * 0.42);
+    cairo_stroke (cr);
+
+    cairo_set_source_rgba (cr, 0.64, 0.74, 0.86, 0.08);
+    cairo_set_line_width (cr, lineWidth * 0.55);
+    cairo_move_to (cr, width * 0.12, height * 0.18);
+    cairo_curve_to (cr, width * 0.38, height * 0.08, width * 0.54, height * 0.30, width * 0.82, height * 0.14);
+    cairo_stroke (cr);
+
+    cairo_select_font_face (cr, "Sans", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+    cairo_set_font_size (cr, titleSize);
+    cairo_text_extents (cr, "Graceful", &titleExtents);
+    cairo_set_source_rgba (cr, 0.92, 0.95, 0.98, 0.11);
+    cairo_move_to (cr, width * 0.075, height * 0.34);
+    cairo_show_text (cr, "Graceful");
+
+    cairo_set_font_size (cr, titleSize * 0.34);
+    cairo_text_extents (cr, "Linux", &subtitleExtents);
+    cairo_set_source_rgba (cr, 0.95, 0.78, 0.46, 0.13);
+    cairo_move_to (
+        cr,
+        width * 0.075 + titleExtents.width - subtitleExtents.width,
+        height * 0.34 + titleSize * 0.46
+    );
+    cairo_show_text (cr, "Linux");
+
+    cairo_destroy (cr);
+}
+
 static void snapshot_cover_paintable (GtkSnapshot* snapshot, GdkPaintable* paintable, double width, double height)
 {
     int naturalWidth = 0;
@@ -100,6 +171,7 @@ static void graceful_wallpaper_view_snapshot (GtkWidget* widget, GtkSnapshot* sn
     double height = gtk_widget_get_height (widget);
     double progress = graceful_wallpaper_transition_get_progress (self->transition);
 
+    snapshot_fallback_background (snapshot, width, height);
     snapshot_cover_paintable (snapshot, self->previousPaintable, width, height);
 
     if (self->currentPaintable != NULL) {

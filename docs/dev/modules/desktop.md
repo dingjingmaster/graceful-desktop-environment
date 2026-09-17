@@ -16,7 +16,7 @@
 
 ## 2. 当前行为
 
-- 用户可见行为：`graceful-desktop` 启动 GTK4 应用，创建无边框全屏窗口；从壁纸目录随机选择图片，以 cover 模式铺满窗口；切换壁纸时旧图淡出、新图淡入；目录为空或图片加载失败时显示黑色背景。
+- 用户可见行为：`graceful-desktop` 启动 GTK4 应用，创建无边框全屏窗口；从壁纸目录随机选择图片，以 cover 模式铺满窗口；切换壁纸时旧图淡出、新图淡入；目录不存在、目录为空或图片加载失败时绘制带浅色 `Graceful Linux` 字样的内置极简线条背景。
 - 配置/接口/数据：支持环境变量 `GRACEFUL_DESKTOP_WALLPAPER_DIR` 指定壁纸目录；支持 `GRACEFUL_DESKTOP_WALLPAPER_INTERVAL` 指定随机切换间隔，单位秒。
 - 默认规则：未指定壁纸目录时使用 `~/Pictures/Wallpapers`；未指定或非法间隔时使用 300 秒。
 - 图片格式：第一阶段支持 `.jpg`、`.jpeg`、`.png`、`.webp`、`.bmp` 后缀；当前只扫描指定目录的直接子文件，不递归。
@@ -25,7 +25,7 @@
 
 - 安全边界：不修改用户文件，不删除图片，不写系统配置。
 - 兼容性要求：构建依赖 `gtk4`、`glib-2.0`、`gobject-2.0`、`gio-2.0`；桌面主体使用 GObject 组织，便于后续扩展菜单、图标和后端。
-- 性能/稳定性要求：图片目录每次切换前重新扫描；过渡绘制使用 GTK snapshot opacity 叠加，默认 1200ms；GObject 引用、GPtrArray 字符串、tick callback 和 GTK 资源需要正确释放。
+- 性能/稳定性要求：图片目录每次切换前重新扫描；过渡绘制使用 GTK snapshot opacity 叠加，默认 1200ms；兜底背景使用 GTK snapshot/Cairo 直接绘制，不依赖外部图片文件；GObject 引用、GPtrArray 字符串、tick callback 和 GTK 资源需要正确释放。
 - 禁止触碰范围：不把 greeter/session 认证和进程编排逻辑放入 desktop 模块。
 
 ## 4. 验证方式
@@ -34,7 +34,7 @@
 |------|---------------|------|
 | 构建 | `cmake -S . -B build && cmake --build build` | 验证 GTK4/GLib/GIO API 和链接 |
 | 单元测试 | `ctest --test-dir build --output-on-failure` | 覆盖配置读取、图片过滤、空目录错误和过渡进度 |
-| 命令行冒烟 | `GRACEFUL_DESKTOP_WALLPAPER_DIR=/path/to/images build/desktop/graceful-desktop` | 需要图形环境 |
+| 命令行冒烟 | `GRACEFUL_DESKTOP_WALLPAPER_DIR=/path/to/images build/desktop/graceful-desktop` | 需要图形环境；可用不存在目录验证兜底背景 |
 | 集成实测 | 登录 Graceful session 后观察背景窗口 | 后续测试机部署验证 |
 
 ## 5. 故障模式与修复记录

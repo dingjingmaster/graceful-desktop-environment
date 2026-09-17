@@ -80,7 +80,7 @@
 
 - 关键日志：LightDM 日志和 greeter 标准错误输出。
 - 指标/告警：当前无。
-- 常见故障：无法连接 LightDM daemon、认证失败、session key 无效、session 启动失败、壁纸目录为空或图片加载失败。
+- 常见故障：无法连接 LightDM daemon、认证失败、session key 无效、session 启动失败、壁纸目录不存在/为空或图片加载失败。
 - 排障入口：`docs/dev/modules/greeter.md`、`docs/dev/modules/session.md`、`docs/dev/modules/desktop.md`。
 
 ## 9. 文档索引

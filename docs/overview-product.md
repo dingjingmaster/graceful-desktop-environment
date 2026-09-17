@@ -25,7 +25,7 @@
 |------|----------|----------|-----------|
 | LightDM 登录 | 用户在全屏 greeter 中选择账号，输入密码并选择 session | 认证成功后启动所选 session | 认证失败时清空密码并保留登录界面 |
 | Graceful session 启动 | 用户选择 Graceful session 登录 | `graceful-session` 设置基础环境并启动核心命令 | 核心命令缺失或退出时 session 结束并返回登录管理器 |
-| 桌面背景显示 | 用户进入 Graceful session 后看到桌面背景 | `graceful-desktop` 从壁纸目录随机选择图片并全屏显示，切换时整图渐变 | 目录为空或图片加载失败时显示黑色背景 |
+| 桌面背景显示 | 用户进入 Graceful session 后看到桌面背景 | `graceful-desktop` 从壁纸目录随机选择图片并全屏显示，切换时整图渐变 | 目录不存在、目录为空或图片加载失败时绘制内置极简线条背景 |
 
 ## 4. 核心流程
 
