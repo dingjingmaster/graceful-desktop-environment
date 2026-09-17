@@ -10,6 +10,10 @@ pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
 pkg_check_modules(GTK4_X11 REQUIRED IMPORTED_TARGET gtk4-x11)
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 
+set(GRACEFUL_PANEL_LOGO_SOURCE_PATH "${CMAKE_SOURCE_DIR}/data/2.png")
+set(GRACEFUL_PANEL_LOGO_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/graceful/panel")
+set(GRACEFUL_PANEL_LOGO_INSTALL_PATH "${CMAKE_INSTALL_FULL_DATADIR}/graceful/panel/menu-logo.png")
+
 add_library(graceful-panel-core STATIC
     panel-app.c
     panel-app.h
@@ -43,6 +47,10 @@ add_library(graceful-panel-core STATIC
     panel-x11-protocol.h
 )
 target_include_directories(graceful-panel-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(graceful-panel-core PRIVATE
+    GRACEFUL_PANEL_LOGO_SOURCE_PATH="${GRACEFUL_PANEL_LOGO_SOURCE_PATH}"
+    GRACEFUL_PANEL_LOGO_INSTALL_PATH="${GRACEFUL_PANEL_LOGO_INSTALL_PATH}"
+)
 target_link_libraries(graceful-panel-core PUBLIC
     PkgConfig::GLIB
     PkgConfig::GOBJECT
@@ -74,3 +82,7 @@ target_link_libraries(panel-window-model-test graceful-panel-core)
 add_test(NAME panel-window-model-test COMMAND panel-window-model-test)
 
 install(TARGETS graceful-panel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(FILES ${GRACEFUL_PANEL_LOGO_SOURCE_PATH}
+    DESTINATION ${GRACEFUL_PANEL_LOGO_INSTALL_DIR}
+    RENAME menu-logo.png
+)

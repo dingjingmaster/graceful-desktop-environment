@@ -21,6 +21,14 @@
  */
 #include "panel-menu-button.h"
 
+#ifndef GRACEFUL_PANEL_LOGO_SOURCE_PATH
+#define GRACEFUL_PANEL_LOGO_SOURCE_PATH "data/2.png"
+#endif
+
+#ifndef GRACEFUL_PANEL_LOGO_INSTALL_PATH
+#define GRACEFUL_PANEL_LOGO_INSTALL_PATH "/usr/local/share/graceful/panel/menu-logo.png"
+#endif
+
 struct _GracefulPanelMenuButton
 {
     GtkButton parentInstance;
@@ -28,13 +36,40 @@ struct _GracefulPanelMenuButton
 
 G_DEFINE_TYPE (GracefulPanelMenuButton, graceful_panel_menu_button, GTK_TYPE_BUTTON)
 
+static GtkWidget* create_menu_logo (void)
+{
+    GtkWidget* image = NULL;
+    const char* logoPath = NULL;
+
+    if (g_file_test (GRACEFUL_PANEL_LOGO_INSTALL_PATH, G_FILE_TEST_EXISTS)) {
+        logoPath = GRACEFUL_PANEL_LOGO_INSTALL_PATH;
+    }
+    else if (g_file_test (GRACEFUL_PANEL_LOGO_SOURCE_PATH, G_FILE_TEST_EXISTS)) {
+        logoPath = GRACEFUL_PANEL_LOGO_SOURCE_PATH;
+    }
+
+    if (logoPath != NULL) {
+        g_autoptr(GFile) file = g_file_new_for_path (logoPath);
+
+        image = gtk_picture_new_for_file (file);
+        gtk_picture_set_content_fit (GTK_PICTURE (image), GTK_CONTENT_FIT_CONTAIN);
+        gtk_widget_add_css_class (image, "panel-menu-logo");
+    }
+    else {
+        image = gtk_image_new_from_icon_name ("start-here-symbolic");
+    }
+
+    return image;
+}
+
 static void graceful_panel_menu_button_class_init (GracefulPanelMenuButtonClass* klass)
 {
 }
 
 static void graceful_panel_menu_button_init (GracefulPanelMenuButton* self)
 {
-    gtk_button_set_label (GTK_BUTTON (self), "Graceful");
+    gtk_button_set_child (GTK_BUTTON (self), create_menu_logo ());
+    gtk_widget_set_tooltip_text (GTK_WIDGET (self), "Menu");
     gtk_widget_add_css_class (GTK_WIDGET (self), "panel-menu-button");
 }
 
