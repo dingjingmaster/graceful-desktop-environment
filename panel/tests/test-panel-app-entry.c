@@ -78,6 +78,30 @@ static void app_entry_rejects_unrelated_query (void)
     g_assert_false (graceful_panel_app_entry_matches (entry, "browser"));
 }
 
+static void app_entry_maps_desktop_categories_to_menu_category (void)
+{
+    g_assert_cmpstr (
+        graceful_panel_app_entry_menu_category_from_desktop_categories ("Network;WebBrowser;"),
+        ==,
+        "Internet"
+    );
+    g_assert_cmpstr (
+        graceful_panel_app_entry_menu_category_from_desktop_categories ("Development;IDE;"),
+        ==,
+        "Development"
+    );
+    g_assert_cmpstr (
+        graceful_panel_app_entry_menu_category_from_desktop_categories ("AudioVideo;Player;"),
+        ==,
+        "Multimedia"
+    );
+    g_assert_cmpstr (
+        graceful_panel_app_entry_menu_category_from_desktop_categories ("Unknown;"),
+        ==,
+        "Other"
+    );
+}
+
 int main (int argc, char* argv[])
 {
     g_test_init (&argc, &argv, NULL);
@@ -92,6 +116,10 @@ int main (int argc, char* argv[])
         app_entry_treats_empty_query_as_match
     );
     g_test_add_func ("/panel/app-entry/rejects-unrelated-query", app_entry_rejects_unrelated_query);
+    g_test_add_func (
+        "/panel/app-entry/maps-desktop-categories-to-menu-category",
+        app_entry_maps_desktop_categories_to_menu_category
+    );
 
     return g_test_run ();
 }

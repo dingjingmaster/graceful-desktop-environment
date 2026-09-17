@@ -27,3 +27,4 @@
 | 2026-09-17 | L2 | bug-e2,system,lifecycle,public-contract | panel | fix/module | [modules/panel.md](modules/panel.md) | 已完成 | 修复 panel 任务预览闪烁和层级不够稳的问题：任务集合不变时不重建按钮，移除任务 tooltip，并通过 EWMH client message 强化 above/dock 状态。 |
 | 2026-09-17 | L1 | product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 将 panel 菜单按钮从 `Graceful` 文本改为 `data/2.png` logo，并安装为 panel 数据文件。 |
 | 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 在 panel 中新增开始菜单第一版：GTK4 popover、应用搜索、固定应用、应用列表和 GIO 应用启动。 |
+| 2026-09-17 | L2 | system,product-flow | panel | task/module | [modules/panel.md](modules/panel.md) | 已完成 | 优化开始菜单：固定应用持久化到 `~/.config/graceful/panel/pinned-apps.ini`，支持右键 pin/unpin、按 desktop 分类分组显示和单击启动。 |

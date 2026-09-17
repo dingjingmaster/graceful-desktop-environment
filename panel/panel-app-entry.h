@@ -33,6 +33,8 @@ struct _GracefulPanelAppEntry
     char* id;
     char* name;
     char* description;
+    char* desktopCategories;
+    char* menuCategory;
     GIcon* icon;
     GAppInfo* appInfo;
 };
@@ -44,10 +46,19 @@ GracefulPanelAppEntry* graceful_panel_app_entry_new (
     GIcon* icon,
     GAppInfo* appInfo
 );
+GracefulPanelAppEntry* graceful_panel_app_entry_new_with_categories (
+    const char* id,
+    const char* name,
+    const char* description,
+    const char* desktopCategories,
+    GIcon* icon,
+    GAppInfo* appInfo
+);
 GracefulPanelAppEntry* graceful_panel_app_entry_copy (const GracefulPanelAppEntry* entry);
 void graceful_panel_app_entry_free (GracefulPanelAppEntry* entry);
 gboolean graceful_panel_app_entry_matches (const GracefulPanelAppEntry* entry, const char* query);
 gboolean graceful_panel_app_entry_launch (const GracefulPanelAppEntry* entry, GError** error);
+const char* graceful_panel_app_entry_menu_category_from_desktop_categories (const char* categories);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (GracefulPanelAppEntry, graceful_panel_app_entry_free)
 

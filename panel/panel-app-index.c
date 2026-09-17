@@ -21,6 +21,8 @@
  */
 #include "panel-app-index.h"
 
+#include <gio/gdesktopappinfo.h>
+
 struct _GracefulPanelAppIndex
 {
     GObject parentInstance;
@@ -50,10 +52,17 @@ static gboolean app_info_should_show (GAppInfo* appInfo)
 
 static GracefulPanelAppEntry* create_entry_from_app_info (GAppInfo* appInfo)
 {
-    return graceful_panel_app_entry_new (
+    const char* categories = NULL;
+
+    if (G_IS_DESKTOP_APP_INFO (appInfo)) {
+        categories = g_desktop_app_info_get_categories (G_DESKTOP_APP_INFO (appInfo));
+    }
+
+    return graceful_panel_app_entry_new_with_categories (
         g_app_info_get_id (appInfo),
         g_app_info_get_name (appInfo),
         g_app_info_get_description (appInfo),
+        categories,
         g_app_info_get_icon (appInfo),
         appInfo
     );
@@ -127,6 +136,27 @@ GPtrArray* graceful_panel_app_index_search (GracefulPanelAppIndex* self, const c
     }
 
     return results;
+}
+
+GracefulPanelAppEntry* graceful_panel_app_index_find_by_id (GracefulPanelAppIndex* self, const char* id)
+{
+    guint i = 0;
+
+    g_return_val_if_fail (GRACEFUL_IS_PANEL_APP_INDEX (self), NULL);
+
+    if (id == NULL || id[0] == '\0') {
+        return NULL;
+    }
+
+    for (i = 0; i < self->entries->len; ++i) {
+        GracefulPanelAppEntry* entry = g_ptr_array_index (self->entries, i);
+
+        if (g_strcmp0 (entry->id, id) == 0) {
+            return graceful_panel_app_entry_copy (entry);
+        }
+    }
+
+    return NULL;
 }
 
 GPtrArray* graceful_panel_app_index_get_pinned (GracefulPanelAppIndex* self, guint maxResults)

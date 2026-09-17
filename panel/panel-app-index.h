@@ -40,6 +40,7 @@ G_DECLARE_FINAL_TYPE (
 
 GracefulPanelAppIndex* graceful_panel_app_index_new (void);
 GPtrArray* graceful_panel_app_index_search (GracefulPanelAppIndex* self, const char* query, guint maxResults);
+GracefulPanelAppEntry* graceful_panel_app_index_find_by_id (GracefulPanelAppIndex* self, const char* id);
 GPtrArray* graceful_panel_app_index_get_pinned (GracefulPanelAppIndex* self, guint maxResults);
 void graceful_panel_app_index_reload (GracefulPanelAppIndex* self);
 

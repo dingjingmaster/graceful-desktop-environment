@@ -6,6 +6,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
 pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+pkg_check_modules(GIO_UNIX REQUIRED IMPORTED_TARGET gio-unix-2.0)
 pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
 pkg_check_modules(GTK4_X11 REQUIRED IMPORTED_TARGET gtk4-x11)
 pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
@@ -33,6 +34,8 @@ add_library(graceful-panel-core STATIC
     panel-menu-button.h
     panel-network-item.c
     panel-network-item.h
+    panel-pinned-apps.c
+    panel-pinned-apps.h
     panel-power-item.c
     panel-power-item.h
     panel-status-area.c
@@ -61,6 +64,7 @@ target_link_libraries(graceful-panel-core PUBLIC
     PkgConfig::GLIB
     PkgConfig::GOBJECT
     PkgConfig::GIO
+    PkgConfig::GIO_UNIX
     PkgConfig::GTK4
     PkgConfig::GTK4_X11
     PkgConfig::X11
@@ -92,6 +96,12 @@ add_executable(panel-app-entry-test
 )
 target_link_libraries(panel-app-entry-test graceful-panel-core)
 add_test(NAME panel-app-entry-test COMMAND panel-app-entry-test)
+
+add_executable(panel-pinned-apps-test
+    tests/test-panel-pinned-apps.c
+)
+target_link_libraries(panel-pinned-apps-test graceful-panel-core)
+add_test(NAME panel-pinned-apps-test COMMAND panel-pinned-apps-test)
 
 install(TARGETS graceful-panel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${GRACEFUL_PANEL_LOGO_SOURCE_PATH}

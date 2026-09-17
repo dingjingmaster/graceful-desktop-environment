@@ -36,10 +36,40 @@ static gboolean text_contains_query (const char* text, const char* query)
     return strstr (foldedText, foldedQuery) != NULL;
 }
 
+static gboolean categories_contain (const char* categories, const char* category)
+{
+    g_autofree char* needle = NULL;
+
+    if (categories == NULL || categories[0] == '\0') {
+        return FALSE;
+    }
+
+    needle = g_strdup_printf (";%s;", category);
+
+    if (g_str_has_prefix (categories, category) &&
+        (categories[strlen (category)] == ';' || categories[strlen (category)] == '\0')) {
+        return TRUE;
+    }
+
+    return strstr (categories, needle) != NULL;
+}
+
 GracefulPanelAppEntry* graceful_panel_app_entry_new (
     const char* id,
     const char* name,
     const char* description,
+    GIcon* icon,
+    GAppInfo* appInfo
+)
+{
+    return graceful_panel_app_entry_new_with_categories (id, name, description, NULL, icon, appInfo);
+}
+
+GracefulPanelAppEntry* graceful_panel_app_entry_new_with_categories (
+    const char* id,
+    const char* name,
+    const char* description,
+    const char* desktopCategories,
     GIcon* icon,
     GAppInfo* appInfo
 )
@@ -49,6 +79,10 @@ GracefulPanelAppEntry* graceful_panel_app_entry_new (
     entry->id = g_strdup (id);
     entry->name = g_strdup (name != NULL && name[0] != '\0' ? name : "Application");
     entry->description = g_strdup (description);
+    entry->desktopCategories = g_strdup (desktopCategories);
+    entry->menuCategory = g_strdup (
+        graceful_panel_app_entry_menu_category_from_desktop_categories (desktopCategories)
+    );
     entry->icon = icon != NULL ? g_object_ref (icon) : NULL;
     entry->appInfo = appInfo != NULL ? g_object_ref (appInfo) : NULL;
 
@@ -61,10 +95,11 @@ GracefulPanelAppEntry* graceful_panel_app_entry_copy (const GracefulPanelAppEntr
         return NULL;
     }
 
-    return graceful_panel_app_entry_new (
+    return graceful_panel_app_entry_new_with_categories (
         entry->id,
         entry->name,
         entry->description,
+        entry->desktopCategories,
         entry->icon,
         entry->appInfo
     );
@@ -79,6 +114,8 @@ void graceful_panel_app_entry_free (GracefulPanelAppEntry* entry)
     g_clear_pointer (&entry->id, g_free);
     g_clear_pointer (&entry->name, g_free);
     g_clear_pointer (&entry->description, g_free);
+    g_clear_pointer (&entry->desktopCategories, g_free);
+    g_clear_pointer (&entry->menuCategory, g_free);
     g_clear_object (&entry->icon);
     g_clear_object (&entry->appInfo);
     g_free (entry);
@@ -107,4 +144,35 @@ gboolean graceful_panel_app_entry_launch (const GracefulPanelAppEntry* entry, GE
     }
 
     return g_app_info_launch (entry->appInfo, NULL, NULL, error);
+}
+
+const char* graceful_panel_app_entry_menu_category_from_desktop_categories (const char* categories)
+{
+    if (categories_contain (categories, "Network")) {
+        return "Internet";
+    }
+    if (categories_contain (categories, "Office")) {
+        return "Office";
+    }
+    if (categories_contain (categories, "Development")) {
+        return "Development";
+    }
+    if (categories_contain (categories, "Graphics")) {
+        return "Graphics";
+    }
+    if (categories_contain (categories, "AudioVideo") || categories_contain (categories, "Audio") ||
+        categories_contain (categories, "Video")) {
+        return "Multimedia";
+    }
+    if (categories_contain (categories, "Game")) {
+        return "Games";
+    }
+    if (categories_contain (categories, "Settings") || categories_contain (categories, "System")) {
+        return "System";
+    }
+    if (categories_contain (categories, "Utility")) {
+        return "Utilities";
+    }
+
+    return "Other";
 }
