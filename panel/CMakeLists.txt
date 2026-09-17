@@ -26,14 +26,20 @@ add_library(graceful-panel-core STATIC
     panel-clock-model.h
     panel-clock-item.c
     panel-clock-item.h
+    panel-cpu-item.c
+    panel-cpu-item.h
     panel-launcher-command.c
     panel-launcher-command.h
     panel-launcher-box.c
     panel-launcher-box.h
     panel-layout.c
     panel-layout.h
+    panel-memory-item.c
+    panel-memory-item.h
     panel-menu-button.c
     panel-menu-button.h
+    panel-net-speed-item.c
+    panel-net-speed-item.h
     panel-network-item.c
     panel-network-item.h
     panel-pinned-apps.c
@@ -46,8 +52,14 @@ add_library(graceful-panel-core STATIC
     panel-status-area.h
     panel-start-menu.c
     panel-start-menu.h
+    panel-system-monitor-model.c
+    panel-system-monitor-model.h
     panel-task-area.c
     panel-task-area.h
+    panel-tray-item.c
+    panel-tray-item.h
+    panel-tray-model.c
+    panel-tray-model.h
     panel-volume-item.c
     panel-volume-item.h
     panel-window.c
@@ -56,6 +68,10 @@ add_library(graceful-panel-core STATIC
     panel-window-list.h
     panel-window-model.c
     panel-window-model.h
+    panel-workspace-item.c
+    panel-workspace-item.h
+    panel-workspace-model.c
+    panel-workspace-model.h
     panel-x11-protocol.c
     panel-x11-protocol.h
 )
@@ -94,6 +110,24 @@ add_executable(panel-power-action-test
 )
 target_link_libraries(panel-power-action-test graceful-panel-core)
 add_test(NAME panel-power-action-test COMMAND panel-power-action-test)
+
+add_executable(panel-workspace-model-test
+    tests/test-panel-workspace-model.c
+)
+target_link_libraries(panel-workspace-model-test graceful-panel-core)
+add_test(NAME panel-workspace-model-test COMMAND panel-workspace-model-test)
+
+add_executable(panel-tray-model-test
+    tests/test-panel-tray-model.c
+)
+target_link_libraries(panel-tray-model-test graceful-panel-core)
+add_test(NAME panel-tray-model-test COMMAND panel-tray-model-test)
+
+add_executable(panel-system-monitor-model-test
+    tests/test-panel-system-monitor-model.c
+)
+target_link_libraries(panel-system-monitor-model-test graceful-panel-core)
+add_test(NAME panel-system-monitor-model-test COMMAND panel-system-monitor-model-test)
 
 add_executable(panel-x11-protocol-test
     tests/test-panel-x11-protocol.c

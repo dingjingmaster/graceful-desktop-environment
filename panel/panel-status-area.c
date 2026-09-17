@@ -22,9 +22,12 @@
 #include "panel-status-area.h"
 
 #include "panel-clock-item.h"
-#include "panel-network-item.h"
+#include "panel-cpu-item.h"
+#include "panel-memory-item.h"
+#include "panel-net-speed-item.h"
 #include "panel-power-item.h"
-#include "panel-volume-item.h"
+#include "panel-tray-item.h"
+#include "panel-workspace-item.h"
 
 struct _GracefulPanelStatusArea
 {
@@ -41,8 +44,11 @@ static void graceful_panel_status_area_init (GracefulPanelStatusArea* self)
 {
     gtk_widget_add_css_class (GTK_WIDGET (self), "panel-status-area");
     gtk_box_set_spacing (GTK_BOX (self), 4);
-    gtk_box_append (GTK_BOX (self), graceful_panel_network_item_new ());
-    gtk_box_append (GTK_BOX (self), graceful_panel_volume_item_new ());
+    gtk_box_append (GTK_BOX (self), graceful_panel_workspace_item_new ());
+    gtk_box_append (GTK_BOX (self), graceful_panel_tray_item_widget_new ());
+    gtk_box_append (GTK_BOX (self), graceful_panel_net_speed_item_new ());
+    gtk_box_append (GTK_BOX (self), graceful_panel_cpu_item_new ());
+    gtk_box_append (GTK_BOX (self), graceful_panel_memory_item_new ());
     gtk_box_append (GTK_BOX (self), graceful_panel_power_item_new ());
     gtk_box_append (GTK_BOX (self), graceful_panel_clock_item_new ());
 }
