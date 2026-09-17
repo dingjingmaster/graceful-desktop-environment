@@ -22,10 +22,13 @@
 #include "desktop-app.h"
 
 #include "desktop-config.h"
+#include "desktop-x11-protocol.h"
 #include "wallpaper-view.h"
 #include "wallpaper-store.h"
 
 #include <gtk/gtk.h>
+
+#define DESKTOP_PROTOCOL_SYNC_INTERVAL_MS 500
 
 struct _GracefulDesktopApp
 {
@@ -37,6 +40,7 @@ struct _GracefulDesktopApp
     GtkWidget* window;
     GtkWidget* wallpaperView;
     guint wallpaperTimerId;
+    guint protocolSyncTimerId;
 };
 
 G_DEFINE_TYPE (GracefulDesktopApp, graceful_desktop_app, G_TYPE_OBJECT)
@@ -79,6 +83,51 @@ static gboolean on_wallpaper_timer (gpointer userData)
     return set_random_wallpaper (GRACEFUL_DESKTOP_APP (userData));
 }
 
+static void apply_desktop_protocol (GracefulDesktopApp* self)
+{
+    if (self->window != NULL) {
+        graceful_desktop_x11_apply_desktop_window (GTK_WINDOW (self->window));
+    }
+}
+
+static gboolean on_desktop_window_apply_protocol_idle (gpointer userData)
+{
+    GracefulDesktopApp* self = GRACEFUL_DESKTOP_APP (userData);
+
+    apply_desktop_protocol (self);
+
+    return G_SOURCE_REMOVE;
+}
+
+static gboolean on_desktop_protocol_sync_timer (gpointer userData)
+{
+    GracefulDesktopApp* self = GRACEFUL_DESKTOP_APP (userData);
+
+    apply_desktop_protocol (self);
+
+    return G_SOURCE_CONTINUE;
+}
+
+static void queue_desktop_protocol_sync (GracefulDesktopApp* self)
+{
+    g_idle_add_full (
+        G_PRIORITY_DEFAULT_IDLE,
+        on_desktop_window_apply_protocol_idle,
+        g_object_ref (self),
+        g_object_unref
+    );
+}
+
+static void on_desktop_window_realize (GtkWidget* widget, gpointer userData)
+{
+    queue_desktop_protocol_sync (GRACEFUL_DESKTOP_APP (userData));
+}
+
+static void on_desktop_window_map (GtkWidget* widget, gpointer userData)
+{
+    queue_desktop_protocol_sync (GRACEFUL_DESKTOP_APP (userData));
+}
+
 static void setup_window_style (void)
 {
     GtkCssProvider* provider = gtk_css_provider_new ();
@@ -106,8 +155,10 @@ static void graceful_desktop_app_activate (GtkApplication* gtkApp, gpointer user
     self->window = gtk_application_window_new (gtkApp);
     gtk_window_set_title (GTK_WINDOW (self->window), "Graceful Desktop");
     gtk_window_set_decorated (GTK_WINDOW (self->window), FALSE);
-    gtk_window_fullscreen (GTK_WINDOW (self->window));
+    gtk_window_set_default_size (GTK_WINDOW (self->window), 1, 1);
     gtk_widget_add_css_class (self->window, "graceful-desktop-window");
+    g_signal_connect (self->window, "realize", G_CALLBACK (on_desktop_window_realize), self);
+    g_signal_connect (self->window, "map", G_CALLBACK (on_desktop_window_map), self);
 
     self->wallpaperView = graceful_wallpaper_view_new ();
     gtk_widget_set_hexpand (self->wallpaperView, TRUE);
@@ -119,6 +170,11 @@ static void graceful_desktop_app_activate (GtkApplication* gtkApp, gpointer user
 
     interval = graceful_desktop_config_get_wallpaper_interval (self->config);
     self->wallpaperTimerId = g_timeout_add_seconds (interval, on_wallpaper_timer, self);
+    self->protocolSyncTimerId = g_timeout_add (
+        DESKTOP_PROTOCOL_SYNC_INTERVAL_MS,
+        on_desktop_protocol_sync_timer,
+        self
+    );
 
     gtk_window_present (GTK_WINDOW (self->window));
 }
@@ -129,6 +185,9 @@ static void graceful_desktop_app_finalize (GObject* object)
 
     if (self->wallpaperTimerId != 0) {
         g_source_remove (self->wallpaperTimerId);
+    }
+    if (self->protocolSyncTimerId != 0) {
+        g_source_remove (self->protocolSyncTimerId);
     }
 
     g_clear_object (&self->gtkApp);

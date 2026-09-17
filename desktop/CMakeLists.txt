@@ -7,10 +7,14 @@ pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
 pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
 pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
+pkg_check_modules(GTK4_X11 REQUIRED IMPORTED_TARGET gtk4-x11)
+pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
 
 add_library(graceful-desktop-core STATIC
     desktop-app.c
     desktop-app.h
+    desktop-x11-protocol.c
+    desktop-x11-protocol.h
     desktop-config.c
     desktop-config.h
     wallpaper-transition.c
@@ -21,7 +25,14 @@ add_library(graceful-desktop-core STATIC
     wallpaper-view.h
 )
 target_include_directories(graceful-desktop-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(graceful-desktop-core PUBLIC PkgConfig::GLIB PkgConfig::GOBJECT PkgConfig::GIO PkgConfig::GTK4)
+target_link_libraries(graceful-desktop-core PUBLIC
+    PkgConfig::GLIB
+    PkgConfig::GOBJECT
+    PkgConfig::GIO
+    PkgConfig::GTK4
+    PkgConfig::GTK4_X11
+    PkgConfig::X11
+)
 
 add_executable(graceful-desktop main.c)
 target_link_libraries(graceful-desktop graceful-desktop-core)

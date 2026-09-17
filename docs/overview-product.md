@@ -14,7 +14,7 @@
 
 ## 2. 功能边界
 
-- 核心功能：当前已实现 LightDM greeter 的最小图形登录入口、登录后的 `graceful-session` 根进程最小闭环，以及 `graceful-desktop` 随机壁纸桌面背景进程。
+- 核心功能：当前已实现 LightDM greeter 的最小图形登录入口、登录后的 `graceful-session` 根进程最小闭环、`graceful-desktop` 随机壁纸桌面背景进程，以及 `graceful-panel` 固定单 panel 第一版。
 - 不支持功能：当前不支持电源菜单、远程登录、锁屏、主题系统和辅助功能专项适配。
 - 关键对象：greeter、session、settings-daemon、desktop。
 - 关键状态：登录前、认证中、认证失败、认证成功并启动 session、session 核心进程运行中、session 结束。
@@ -26,6 +26,7 @@
 | LightDM 登录 | 用户在全屏 greeter 中选择账号，输入密码并选择 session | 认证成功后启动所选 session | 认证失败时清空密码并保留登录界面 |
 | Graceful session 启动 | 用户选择 Graceful session 登录 | `graceful-session` 设置基础环境并启动核心命令 | 核心命令缺失或退出时 session 结束并返回登录管理器 |
 | 桌面背景显示 | 用户进入 Graceful session 后看到桌面背景 | `graceful-desktop` 从壁纸目录随机选择图片并全屏显示，切换时整图渐变 | 目录不存在、目录为空或图片加载失败时绘制内置极简线条背景 |
+| Panel 显示 | 用户进入 Graceful session 后看到传统单 panel | `graceful-panel` 显示菜单、启动器、任务区、网络、音量、电源、时钟位置 | 第一阶段除时钟外为占位模块 |
 
 ## 4. 核心流程
 
@@ -50,6 +51,7 @@
 - 用户可见行为：第一版 UI 全屏显示，背景图可配置，登录框居中；提供用户列表、密码、session 选择、登录按钮和状态提示。
 - Session 规则：第一版 `graceful-session` 不提供完整 GNOME SessionManager D-Bus API；默认核心命令为 `graceful-desktop`。
 - Desktop 规则：第一版 `graceful-desktop` 只提供随机壁纸背景和整图渐变切换，不提供桌面图标、右键菜单、文件操作或设置中心入口。
+- Panel 规则：第一版 `graceful-panel` 只提供一个固定 panel，不提供多 panel、动态插件、配置系统或真实状态控制。
 
 ## 6. 文档索引
 
@@ -59,6 +61,7 @@
   - docs/dev/1-summary-greeter.md：LightDM greeter 第一版实现总结。
   - docs/dev/2-summary-session.md：Session 根进程第一版实现总结。
   - docs/dev/modules/desktop.md：Desktop 背景进程模块上下文。
+  - docs/dev/modules/panel.md：Panel 进程模块上下文。
 
 ## 7. 变更记录
 
@@ -67,3 +70,4 @@
 | 2026-09-16 | 新增 LightDM greeter 产品行为 | 建立登录入口第一版 | docs/dev/1-summary-greeter.md |
 | 2026-09-17 | 新增 Graceful session 根进程行为 | 建立登录后的用户 session 最小闭环 | docs/dev/2-summary-session.md |
 | 2026-09-17 | 新增 Graceful desktop 随机壁纸背景行为 | 建立桌面壳最小可见闭环 | docs/dev/modules/desktop.md |
+| 2026-09-17 | 新增 Graceful panel 固定单 panel 行为 | 建立传统 panel 第一版布局 | docs/dev/modules/panel.md |

@@ -1,0 +1,66 @@
+project(graceful-panel LANGUAGES C)
+
+include(GNUInstallDirs)
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
+pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
+pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+pkg_check_modules(GTK4 REQUIRED IMPORTED_TARGET gtk4)
+pkg_check_modules(GTK4_X11 REQUIRED IMPORTED_TARGET gtk4-x11)
+pkg_check_modules(X11 REQUIRED IMPORTED_TARGET x11)
+
+add_library(graceful-panel-core STATIC
+    panel-app.c
+    panel-app.h
+    panel-clock-model.c
+    panel-clock-model.h
+    panel-clock-item.c
+    panel-clock-item.h
+    panel-launcher-box.c
+    panel-launcher-box.h
+    panel-layout.c
+    panel-layout.h
+    panel-menu-button.c
+    panel-menu-button.h
+    panel-network-item.c
+    panel-network-item.h
+    panel-power-item.c
+    panel-power-item.h
+    panel-status-area.c
+    panel-status-area.h
+    panel-task-area.c
+    panel-task-area.h
+    panel-volume-item.c
+    panel-volume-item.h
+    panel-window.c
+    panel-window.h
+    panel-x11-protocol.c
+    panel-x11-protocol.h
+)
+target_include_directories(graceful-panel-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(graceful-panel-core PUBLIC
+    PkgConfig::GLIB
+    PkgConfig::GOBJECT
+    PkgConfig::GIO
+    PkgConfig::GTK4
+    PkgConfig::GTK4_X11
+    PkgConfig::X11
+)
+
+add_executable(graceful-panel main.c)
+target_link_libraries(graceful-panel graceful-panel-core)
+
+add_executable(panel-clock-model-test
+    tests/test-panel-clock-model.c
+)
+target_link_libraries(panel-clock-model-test graceful-panel-core)
+add_test(NAME panel-clock-model-test COMMAND panel-clock-model-test)
+
+add_executable(panel-x11-protocol-test
+    tests/test-panel-x11-protocol.c
+)
+target_link_libraries(panel-x11-protocol-test graceful-panel-core)
+add_test(NAME panel-x11-protocol-test COMMAND panel-x11-protocol-test)
+
+install(TARGETS graceful-panel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
