@@ -19,25 +19,29 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef GRACEFUL_PANEL_PANEL_MENU_BUTTON_H
-#define GRACEFUL_PANEL_PANEL_MENU_BUTTON_H
+#ifndef GRACEFUL_PANEL_PANEL_APP_INDEX_H
+#define GRACEFUL_PANEL_PANEL_APP_INDEX_H
+
+#include "panel-app-entry.h"
 
 #include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
-#define GRACEFUL_TYPE_PANEL_MENU_BUTTON (graceful_panel_menu_button_get_type ())
+#define GRACEFUL_TYPE_PANEL_APP_INDEX (graceful_panel_app_index_get_type ())
 
 G_DECLARE_FINAL_TYPE (
-    GracefulPanelMenuButton,
-    graceful_panel_menu_button,
+    GracefulPanelAppIndex,
+    graceful_panel_app_index,
     GRACEFUL,
-    PANEL_MENU_BUTTON,
-    GtkButton
+    PANEL_APP_INDEX,
+    GObject
 )
 
-GtkWidget* graceful_panel_menu_button_new (void);
-void graceful_panel_menu_button_popup (GracefulPanelMenuButton* self);
+GracefulPanelAppIndex* graceful_panel_app_index_new (void);
+GPtrArray* graceful_panel_app_index_search (GracefulPanelAppIndex* self, const char* query, guint maxResults);
+GPtrArray* graceful_panel_app_index_get_pinned (GracefulPanelAppIndex* self, guint maxResults);
+void graceful_panel_app_index_reload (GracefulPanelAppIndex* self);
 
 G_END_DECLS
 

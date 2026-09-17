@@ -19,25 +19,25 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef GRACEFUL_PANEL_PANEL_MENU_BUTTON_H
-#define GRACEFUL_PANEL_PANEL_MENU_BUTTON_H
+#ifndef GRACEFUL_PANEL_PANEL_START_MENU_H
+#define GRACEFUL_PANEL_PANEL_START_MENU_H
 
 #include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
-#define GRACEFUL_TYPE_PANEL_MENU_BUTTON (graceful_panel_menu_button_get_type ())
+#define GRACEFUL_TYPE_PANEL_START_MENU (graceful_panel_start_menu_get_type ())
 
 G_DECLARE_FINAL_TYPE (
-    GracefulPanelMenuButton,
-    graceful_panel_menu_button,
+    GracefulPanelStartMenu,
+    graceful_panel_start_menu,
     GRACEFUL,
-    PANEL_MENU_BUTTON,
-    GtkButton
+    PANEL_START_MENU,
+    GtkPopover
 )
 
-GtkWidget* graceful_panel_menu_button_new (void);
-void graceful_panel_menu_button_popup (GracefulPanelMenuButton* self);
+GtkWidget* graceful_panel_start_menu_new (void);
+void graceful_panel_start_menu_popup_for_button (GracefulPanelStartMenu* self, GtkWidget* button);
 
 G_END_DECLS
 

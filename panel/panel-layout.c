@@ -33,6 +33,24 @@ struct _GracefulPanelLayout
 
 G_DEFINE_TYPE (GracefulPanelLayout, graceful_panel_layout, GTK_TYPE_BOX)
 
+static void on_start_area_pressed (
+    GtkGestureClick* gesture,
+    int pressCount,
+    double x,
+    double y,
+    gpointer userData
+)
+{
+    GracefulPanelMenuButton* menuButton = GRACEFUL_PANEL_MENU_BUTTON (userData);
+
+    if (x > 64.0) {
+        return;
+    }
+
+    graceful_panel_menu_button_popup (menuButton);
+    gtk_gesture_set_state (GTK_GESTURE (gesture), GTK_EVENT_SEQUENCE_CLAIMED);
+}
+
 static void graceful_panel_layout_class_init (GracefulPanelLayoutClass* klass)
 {
 }
@@ -40,14 +58,27 @@ static void graceful_panel_layout_class_init (GracefulPanelLayoutClass* klass)
 static void graceful_panel_layout_init (GracefulPanelLayout* self)
 {
     GtkWidget* startBox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 6);
+    GtkWidget* menuButton = graceful_panel_menu_button_new ();
     GtkWidget* taskArea = graceful_panel_task_area_new ();
     GtkWidget* statusArea = graceful_panel_status_area_new ();
+    GtkGesture* startClick = gtk_gesture_click_new ();
 
     gtk_widget_add_css_class (GTK_WIDGET (self), "panel-layout");
     gtk_widget_add_css_class (startBox, "panel-start-area");
     gtk_widget_set_hexpand (taskArea, TRUE);
 
-    gtk_box_append (GTK_BOX (startBox), graceful_panel_menu_button_new ());
+    gtk_event_controller_set_propagation_phase (GTK_EVENT_CONTROLLER (startClick), GTK_PHASE_CAPTURE);
+    g_signal_connect_data (
+        startClick,
+        "pressed",
+        G_CALLBACK (on_start_area_pressed),
+        g_object_ref (menuButton),
+        (GClosureNotify) g_object_unref,
+        0
+    );
+    gtk_widget_add_controller (startBox, GTK_EVENT_CONTROLLER (startClick));
+
+    gtk_box_append (GTK_BOX (startBox), menuButton);
     gtk_box_append (GTK_BOX (startBox), graceful_panel_launcher_box_new ());
 
     gtk_box_append (GTK_BOX (self), startBox);

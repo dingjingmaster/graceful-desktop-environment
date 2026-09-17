@@ -19,25 +19,37 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#ifndef GRACEFUL_PANEL_PANEL_MENU_BUTTON_H
-#define GRACEFUL_PANEL_PANEL_MENU_BUTTON_H
+#ifndef GRACEFUL_PANEL_PANEL_APP_ENTRY_H
+#define GRACEFUL_PANEL_PANEL_APP_ENTRY_H
 
 #include <gtk/gtk.h>
 
 G_BEGIN_DECLS
 
-#define GRACEFUL_TYPE_PANEL_MENU_BUTTON (graceful_panel_menu_button_get_type ())
+typedef struct _GracefulPanelAppEntry GracefulPanelAppEntry;
 
-G_DECLARE_FINAL_TYPE (
-    GracefulPanelMenuButton,
-    graceful_panel_menu_button,
-    GRACEFUL,
-    PANEL_MENU_BUTTON,
-    GtkButton
-)
+struct _GracefulPanelAppEntry
+{
+    char* id;
+    char* name;
+    char* description;
+    GIcon* icon;
+    GAppInfo* appInfo;
+};
 
-GtkWidget* graceful_panel_menu_button_new (void);
-void graceful_panel_menu_button_popup (GracefulPanelMenuButton* self);
+GracefulPanelAppEntry* graceful_panel_app_entry_new (
+    const char* id,
+    const char* name,
+    const char* description,
+    GIcon* icon,
+    GAppInfo* appInfo
+);
+GracefulPanelAppEntry* graceful_panel_app_entry_copy (const GracefulPanelAppEntry* entry);
+void graceful_panel_app_entry_free (GracefulPanelAppEntry* entry);
+gboolean graceful_panel_app_entry_matches (const GracefulPanelAppEntry* entry, const char* query);
+gboolean graceful_panel_app_entry_launch (const GracefulPanelAppEntry* entry, GError** error);
+
+G_DEFINE_AUTOPTR_CLEANUP_FUNC (GracefulPanelAppEntry, graceful_panel_app_entry_free)
 
 G_END_DECLS
 

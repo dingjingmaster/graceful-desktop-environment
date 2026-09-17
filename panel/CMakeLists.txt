@@ -15,6 +15,10 @@ set(GRACEFUL_PANEL_LOGO_INSTALL_DIR "${CMAKE_INSTALL_DATADIR}/graceful/panel")
 set(GRACEFUL_PANEL_LOGO_INSTALL_PATH "${CMAKE_INSTALL_FULL_DATADIR}/graceful/panel/menu-logo.png")
 
 add_library(graceful-panel-core STATIC
+    panel-app-entry.c
+    panel-app-entry.h
+    panel-app-index.c
+    panel-app-index.h
     panel-app.c
     panel-app.h
     panel-clock-model.c
@@ -33,6 +37,8 @@ add_library(graceful-panel-core STATIC
     panel-power-item.h
     panel-status-area.c
     panel-status-area.h
+    panel-start-menu.c
+    panel-start-menu.h
     panel-task-area.c
     panel-task-area.h
     panel-volume-item.c
@@ -80,6 +86,12 @@ add_executable(panel-window-model-test
 )
 target_link_libraries(panel-window-model-test graceful-panel-core)
 add_test(NAME panel-window-model-test COMMAND panel-window-model-test)
+
+add_executable(panel-app-entry-test
+    tests/test-panel-app-entry.c
+)
+target_link_libraries(panel-app-entry-test graceful-panel-core)
+add_test(NAME panel-app-entry-test COMMAND panel-app-entry-test)
 
 install(TARGETS graceful-panel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES ${GRACEFUL_PANEL_LOGO_SOURCE_PATH}
