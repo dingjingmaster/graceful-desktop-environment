@@ -52,6 +52,8 @@ add_library(graceful-panel-core STATIC
     panel-resource-item.h
     panel-status-area.c
     panel-status-area.h
+    panel-status-notifier-watcher.c
+    panel-status-notifier-watcher.h
     panel-start-menu.c
     panel-start-menu.h
     panel-system-monitor-model.c
@@ -124,6 +126,12 @@ add_executable(panel-tray-model-test
 )
 target_link_libraries(panel-tray-model-test graceful-panel-core)
 add_test(NAME panel-tray-model-test COMMAND panel-tray-model-test)
+
+add_executable(panel-status-notifier-watcher-test
+    tests/test-panel-status-notifier-watcher.c
+)
+target_link_libraries(panel-status-notifier-watcher-test graceful-panel-core)
+add_test(NAME panel-status-notifier-watcher-test COMMAND panel-status-notifier-watcher-test)
 
 add_executable(panel-system-monitor-model-test
     tests/test-panel-system-monitor-model.c

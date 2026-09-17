@@ -28,9 +28,32 @@ static void tray_item_copies_display_fields (void)
 
 static void tray_model_reports_empty_when_no_items_exist (void)
 {
-    g_autoptr(GPtrArray) items = graceful_panel_tray_model_list_items ();
+    g_autoptr(GPtrArray) items = NULL;
 
+    graceful_panel_tray_model_clear ();
+    items = graceful_panel_tray_model_list_items ();
     g_assert_cmpuint (items->len, ==, 0);
+    g_assert_false (graceful_panel_tray_model_has_items ());
+}
+
+static void tray_model_upserts_and_removes_items_by_id (void)
+{
+    g_autoptr(GPtrArray) items = NULL;
+    GracefulPanelTrayItem* item = NULL;
+
+    graceful_panel_tray_model_clear ();
+    graceful_panel_tray_model_upsert_item ("org.example.Status", "First", "first-icon");
+    graceful_panel_tray_model_upsert_item ("org.example.Status", "Second", "second-icon");
+
+    items = graceful_panel_tray_model_list_items ();
+    g_assert_cmpuint (items->len, ==, 1);
+    item = g_ptr_array_index (items, 0);
+    g_assert_cmpstr (item->id, ==, "org.example.Status");
+    g_assert_cmpstr (item->title, ==, "Second");
+    g_assert_cmpstr (item->iconName, ==, "second-icon");
+    g_assert_true (graceful_panel_tray_model_has_items ());
+
+    graceful_panel_tray_model_remove_item ("org.example.Status");
     g_assert_false (graceful_panel_tray_model_has_items ());
 }
 
@@ -42,6 +65,10 @@ int main (int argc, char* argv[])
     g_test_add_func (
         "/panel/tray-model/reports-empty-when-no-items-exist",
         tray_model_reports_empty_when_no_items_exist
+    );
+    g_test_add_func (
+        "/panel/tray-model/upserts-and-removes-items-by-id",
+        tray_model_upserts_and_removes_items_by_id
     );
 
     return g_test_run ();

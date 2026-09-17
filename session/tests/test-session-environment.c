@@ -26,7 +26,7 @@
 
 static void environment_sets_session_variables (void)
 {
-    const char* baseEnv[] = { "PATH=/bin", "XDG_CURRENT_DESKTOP=Old", NULL };
+    const char* baseEnv[] = { "PATH=/bin", "XDG_CURRENT_DESKTOP=Old", "GTK_MODULES=gail:atk-bridge", NULL };
     g_autoptr(GracefulSessionEnvironment) environment = graceful_session_environment_new ("graceful", "Graceful");
     g_auto(GStrv) envp = graceful_session_environment_build (environment, baseEnv);
 
@@ -34,6 +34,10 @@ static void environment_sets_session_variables (void)
     g_assert_cmpstr (g_environ_getenv (envp, "DESKTOP_SESSION"), ==, "graceful");
     g_assert_cmpstr (g_environ_getenv (envp, "GDMSESSION"), ==, "graceful");
     g_assert_cmpstr (g_environ_getenv (envp, "XDG_CURRENT_DESKTOP"), ==, "Graceful");
+    g_assert_cmpstr (g_environ_getenv (envp, "XDG_SESSION_TYPE"), ==, "wayland");
+    g_assert_cmpstr (g_environ_getenv (envp, "GDK_BACKEND"), ==, "x11");
+    g_assert_null (g_environ_getenv (envp, "GTK_MODULES"));
+    g_assert_cmpstr (g_environ_getenv (envp, "NO_AT_BRIDGE"), ==, "1");
     g_assert_cmpstr (g_environ_getenv (envp, "GTK_IM_MODULE"), ==, "ibus");
     g_assert_cmpstr (g_environ_getenv (envp, "QT_IM_MODULE"), ==, "ibus");
     g_assert_cmpstr (g_environ_getenv (envp, "XMODIFIERS"), ==, "@im=ibus");

@@ -15,21 +15,13 @@
 static void default_components_match_desktop_session_order (void)
 {
     g_autoptr(GPtrArray) components = graceful_session_component_list_new_default ();
-    const GracefulSessionComponent* mutter = g_ptr_array_index (components, 0);
-    const GracefulSessionComponent* ibus = g_ptr_array_index (components, 1);
-    const GracefulSessionComponent* rime = g_ptr_array_index (components, 2);
-    const GracefulSessionComponent* desktop = g_ptr_array_index (components, 3);
-    const GracefulSessionComponent* panel = g_ptr_array_index (components, 4);
+    const GracefulSessionComponent* ibus = g_ptr_array_index (components, 0);
+    const GracefulSessionComponent* rime = g_ptr_array_index (components, 1);
+    const GracefulSessionComponent* desktop = g_ptr_array_index (components, 2);
+    const GracefulSessionComponent* panel = g_ptr_array_index (components, 3);
     const char* const* argv = NULL;
 
-    g_assert_cmpuint (components->len, ==, 5);
-
-    argv = graceful_session_component_get_argv (mutter);
-    g_assert_cmpstr (graceful_session_component_get_name (mutter), ==, "mutter");
-    g_assert_cmpstr (argv[0], ==, "mutter");
-    g_assert_cmpstr (argv[1], ==, "--replace");
-    g_assert_true (graceful_session_component_get_required (mutter));
-    g_assert_false (graceful_session_component_get_oneshot (mutter));
+    g_assert_cmpuint (components->len, ==, 4);
 
     argv = graceful_session_component_get_argv (ibus);
     g_assert_cmpstr (graceful_session_component_get_name (ibus), ==, "ibus-daemon");
@@ -49,13 +41,15 @@ static void default_components_match_desktop_session_order (void)
 
     argv = graceful_session_component_get_argv (desktop);
     g_assert_cmpstr (graceful_session_component_get_name (desktop), ==, "graceful-desktop");
-    g_assert_cmpstr (argv[0], ==, "graceful-desktop");
+    g_assert_true (g_str_has_suffix (argv[0], "/graceful-desktop"));
+    g_assert_true (g_path_is_absolute (argv[0]));
     g_assert_true (graceful_session_component_get_required (desktop));
     g_assert_false (graceful_session_component_get_oneshot (desktop));
 
     argv = graceful_session_component_get_argv (panel);
     g_assert_cmpstr (graceful_session_component_get_name (panel), ==, "graceful-panel");
-    g_assert_cmpstr (argv[0], ==, "graceful-panel");
+    g_assert_true (g_str_has_suffix (argv[0], "/graceful-panel"));
+    g_assert_true (g_path_is_absolute (argv[0]));
     g_assert_true (graceful_session_component_get_required (panel));
     g_assert_false (graceful_session_component_get_oneshot (panel));
 }

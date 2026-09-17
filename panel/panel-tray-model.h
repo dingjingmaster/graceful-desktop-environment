@@ -28,6 +28,9 @@ GracefulPanelTrayItem* graceful_panel_tray_item_copy (const GracefulPanelTrayIte
 void graceful_panel_tray_item_free (GracefulPanelTrayItem* item);
 GPtrArray* graceful_panel_tray_model_list_items (void);
 gboolean graceful_panel_tray_model_has_items (void);
+void graceful_panel_tray_model_upsert_item (const char* id, const char* title, const char* iconName);
+void graceful_panel_tray_model_remove_item (const char* id);
+void graceful_panel_tray_model_clear (void);
 
 G_DEFINE_AUTOPTR_CLEANUP_FUNC (GracefulPanelTrayItem, graceful_panel_tray_item_free)
 

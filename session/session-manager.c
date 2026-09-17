@@ -22,6 +22,7 @@
 
 #include "session-manager.h"
 
+#include "session-autostart.h"
 #include "session-component.h"
 #include "session-environment.h"
 #include "session-process.h"
@@ -161,6 +162,49 @@ static gboolean graceful_session_manager_start_component (
     return TRUE;
 }
 
+static GStrv graceful_session_manager_build_autostart_dirs (void)
+{
+    const char* const* configDirs = NULL;
+    GPtrArray* dirs = g_ptr_array_new_with_free_func (g_free);
+    const char* configHome = g_get_user_config_dir ();
+
+    if (configHome != NULL) {
+        g_ptr_array_add (dirs, g_strdup (configHome));
+    }
+
+    configDirs = g_get_system_config_dirs ();
+    for (gsize i = 0; configDirs != NULL && configDirs[i] != NULL; i++) {
+        g_ptr_array_add (dirs, g_strdup (configDirs[i]));
+    }
+
+    g_ptr_array_add (dirs, NULL);
+
+    return (GStrv) g_ptr_array_free (dirs, FALSE);
+}
+
+static void graceful_session_manager_start_autostart (const char* const* envp)
+{
+    g_autoptr(GracefulSessionAutostart) autostart = graceful_session_autostart_new ("Graceful");
+    g_auto(GStrv) configDirs = graceful_session_manager_build_autostart_dirs ();
+    g_autoptr(GPtrArray) commands = NULL;
+    const char* pathEnv = g_environ_getenv ((GStrv) envp, "PATH");
+
+    commands = graceful_session_autostart_list_commands (autostart, (const char* const*) configDirs, pathEnv);
+    for (guint i = 0; commands != NULL && i < commands->len; i++) {
+        const char* const* argv = g_ptr_array_index (commands, i);
+        g_autoptr(GracefulSessionProcess) process = graceful_session_process_new ("xdg-autostart", argv, envp);
+        g_autoptr(GError) error = NULL;
+
+        if (!graceful_session_process_start (process, &error)) {
+            g_printerr (
+                "graceful-session: autostart '%s' failed: %s\n",
+                argv != NULL && argv[0] != NULL ? argv[0] : "unknown",
+                error != NULL ? error->message : "unknown error"
+            );
+        }
+    }
+}
+
 static gboolean graceful_session_manager_run_components (
     GracefulSessionManager* self,
     const char* const* envp,
@@ -196,6 +240,8 @@ static gboolean graceful_session_manager_run_components (
             );
         }
     }
+
+    graceful_session_manager_start_autostart (envp);
 
     loop = g_main_loop_new (NULL, FALSE);
     waitContext.loop = loop;

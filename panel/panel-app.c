@@ -21,6 +21,7 @@
  */
 #include "panel-app.h"
 
+#include "panel-status-notifier-watcher.h"
 #include "panel-window.h"
 
 #include <gtk/gtk.h>
@@ -30,6 +31,7 @@ struct _GracefulPanelApp
     GObject parentInstance;
 
     GtkApplication* gtkApp;
+    GracefulPanelStatusNotifierWatcher* statusNotifierWatcher;
 };
 
 G_DEFINE_TYPE (GracefulPanelApp, graceful_panel_app, G_TYPE_OBJECT)
@@ -317,6 +319,7 @@ static void graceful_panel_app_dispose (GObject* object)
 {
     GracefulPanelApp* self = GRACEFUL_PANEL_APP (object);
 
+    g_clear_object (&self->statusNotifierWatcher);
     g_clear_object (&self->gtkApp);
 
     G_OBJECT_CLASS (graceful_panel_app_parent_class)->dispose (object);
@@ -331,8 +334,10 @@ static void graceful_panel_app_class_init (GracefulPanelAppClass* klass)
 
 static void graceful_panel_app_init (GracefulPanelApp* self)
 {
+    self->statusNotifierWatcher = graceful_panel_status_notifier_watcher_new ();
     self->gtkApp = gtk_application_new ("org.graceful.panel", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect (self->gtkApp, "activate", G_CALLBACK (graceful_panel_app_activate), self);
+    graceful_panel_status_notifier_watcher_start (self->statusNotifierWatcher);
 }
 
 GracefulPanelApp* graceful_panel_app_new (void)

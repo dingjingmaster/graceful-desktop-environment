@@ -22,8 +22,6 @@
 
 #include "session-process.h"
 
-#include <string.h>
-
 struct _GracefulSessionProcess
 {
     GObject parentInstance;
@@ -58,25 +56,6 @@ static void graceful_session_process_class_init (GracefulSessionProcessClass* kl
 static void graceful_session_process_init (GracefulSessionProcess* self)
 {
     self->exitStatus = -1;
-}
-
-static void graceful_session_process_apply_environment (GSubprocessLauncher* launcher, GStrv envp)
-{
-    if (envp == NULL) {
-        return;
-    }
-
-    for (gsize i = 0; envp[i] != NULL; i++) {
-        const char* equals = strchr (envp[i], '=');
-        g_autofree char* variable = NULL;
-
-        if (equals == NULL || equals == envp[i]) {
-            continue;
-        }
-
-        variable = g_strndup (envp[i], equals - envp[i]);
-        g_subprocess_launcher_setenv (launcher, variable, equals + 1, TRUE);
-    }
 }
 
 static void graceful_session_process_wait_subprocess_done (
@@ -134,7 +113,9 @@ gboolean graceful_session_process_start (GracefulSessionProcess* self, GError** 
     }
 
     launcher = g_subprocess_launcher_new (G_SUBPROCESS_FLAGS_NONE);
-    graceful_session_process_apply_environment (launcher, self->envp);
+    if (self->envp != NULL) {
+        g_subprocess_launcher_set_environ (launcher, self->envp);
+    }
     self->subprocess = g_subprocess_launcher_spawnv (launcher, (const char* const*) self->argv, error);
 
     return self->subprocess != NULL;

@@ -101,14 +101,37 @@ static void process_reports_async_success_exit_status (void)
     g_assert_cmpint (graceful_session_process_get_exit_status (process), ==, 0);
 }
 
+static void process_uses_exact_environment (void)
+{
+    const char* argv[] = {
+        "/bin/sh",
+        "-c",
+        "test \"$GRACEFUL_TEST_ENV\" = expected && test -z \"${GRACEFUL_TEST_REMOVED_ENV+x}\"",
+        NULL
+    };
+    const char* envp[] = { "PATH=/bin:/usr/bin", "GRACEFUL_TEST_ENV=expected", NULL };
+    g_autoptr(GError) error = NULL;
+    g_autoptr(GracefulSessionProcess) process = NULL;
+
+    process = graceful_session_process_new ("env", argv, envp);
+
+    g_assert_true (graceful_session_process_start (process, &error));
+    g_assert_no_error (error);
+    g_assert_true (graceful_session_process_wait (process, NULL, &error));
+    g_assert_no_error (error);
+}
+
 int main (int argc, char* argv[])
 {
+    g_setenv ("GRACEFUL_TEST_REMOVED_ENV", "present", TRUE);
+
     g_test_init (&argc, &argv, NULL);
 
     g_test_add_func ("/session/process/reports-success-exit-status", process_reports_success_exit_status);
     g_test_add_func ("/session/process/reports-failure-exit-status", process_reports_failure_exit_status);
     g_test_add_func ("/session/process/rejects-missing-command", process_rejects_missing_command);
     g_test_add_func ("/session/process/reports-async-success-exit-status", process_reports_async_success_exit_status);
+    g_test_add_func ("/session/process/uses-exact-environment", process_uses_exact_environment);
 
     return g_test_run ();
 }

@@ -19,7 +19,7 @@
 - 用户可见行为：`graceful-panel` 启动 GTK4 应用，创建半透明磨砂观感的无边框 panel 窗口；左侧显示 logo 菜单按钮，点击后弹出开始菜单，提供搜索框、固定应用和按 desktop 分类分组的应用列表；固定应用可右键取消固定，其他应用可右键固定，应用列表项单击启动；左侧还显示终端、文件、设置启动器；中间任务区为空时不显示文案，有普通应用窗口时显示对应窗口图标按钮，鼠标悬停时显示窗口缩略图或标题/图标兜底；右侧显示 workspace 指示、按需显示的 tray 展开按钮、电源图标和两行本地时间。
 - 启动器行为：终端按钮按 `graceful-terminal`、`gnome-terminal`、`terminator`、`mate-terminal` 顺序查找并启动；文件按钮按 `graceful-file`、`nautilus`、`caja` 顺序查找并启动；设置按钮按 `graceful-settings`、`gnome-control-center` 顺序查找并启动。
 - 电源菜单行为：点击 Power 按钮弹出菜单，提供关机、重启、登出、锁屏；关机/重启通过 `systemctl poweroff/reboot` 执行，登出优先 `loginctl terminate-session $XDG_SESSION_ID` 并回退到 `loginctl terminate-user $USER`，锁屏按 `loginctl lock-session`、`gnome-screensaver-command -l`、`xdg-screensaver lock` 顺序尝试。
-- Workspace/Tray 行为：workspace 指示按钮读取 X11/EWMH `_NET_CURRENT_DESKTOP` 和 `_NET_NUMBER_OF_DESKTOPS` 并显示 `当前/总数`；没有托盘项时隐藏 tray 展开按钮，有托盘项时显示自绘箭头按钮，点击后向上弹出透明菜单。菜单打开时箭头旋转为向下，关闭时旋转回向上。当前 tray 为 UI 和模型骨架，真实 StatusNotifier/XEmbed 协议接入在后续阶段完成。
+- Workspace/Tray 行为：workspace 指示按钮读取 X11/EWMH `_NET_CURRENT_DESKTOP` 和 `_NET_NUMBER_OF_DESKTOPS` 并显示 `当前/总数`；panel 启动时在 session bus 上提供 `org.kde.StatusNotifierWatcher`，接收 StatusNotifier/AppIndicator 进程注册并显示托盘展开按钮；没有托盘项时隐藏 tray 展开按钮，有托盘项时显示自绘箭头按钮，点击后向上弹出透明菜单。菜单打开时箭头旋转为向下，关闭时旋转回向上。XEmbed system tray 协议尚未接入。
 - 系统监控行为：tray 和 Power 之间显示网速状态项和资源状态项；网速读取 `/proc/net/dev` 汇总非 `lo` 网卡，上行在上、下载在下，单位自动切换 `B/KB/MB/GB/s` 并保留两位小数，组件按三位整数和两位小数预留宽度；资源状态项上行显示内存使用百分比，下行显示 CPU 使用百分比，按 `100.00%` 预留宽度且不显示 CPU 温度。
 - 开始菜单数据：通过 GIO `GAppInfo` 收集系统应用，通过 `GDesktopAppInfo` 读取 desktop `Categories` 并映射为菜单分组；`GracefulPanelAppEntry` 负责应用名称/描述/图标/启动信息、分类和搜索匹配，应用启动调用 GIO。
 - 窗口协议：X11/Xwayland 下设置 `_NET_WM_WINDOW_TYPE_DOCK`、sticky/skip taskbar/skip pager/above 状态和底部 `_NET_WM_STRUT_PARTIAL`；运行期间每 500ms 按 X root 几何重新同步 panel 宽度、底部位置和保留区域。
@@ -39,7 +39,7 @@
 | 场景 | 验证命令/步骤 | 备注 |
 |------|---------------|------|
 | 构建 | `cmake -S . -B build && cmake --build build` | 验证 GTK4/GLib/GIO API 和链接 |
-| 单元测试 | `ctest --test-dir build --output-on-failure` | 覆盖启动器候选命令解析、Power action 命令映射、workspace 标签格式化、tray item 数据模型、系统监控解析/格式化、时钟模型格式化、dock strut 计算、任务窗口过滤、标题回退、开始菜单应用搜索/分类和固定应用持久化 |
+| 单元测试 | `ctest --test-dir build --output-on-failure` | 覆盖启动器候选命令解析、Power action 命令映射、workspace 标签格式化、tray item 数据模型、StatusNotifierWatcher 注册地址解析、系统监控解析/格式化、时钟模型格式化、dock strut 计算、任务窗口过滤、标题回退、开始菜单应用搜索/分类和固定应用持久化 |
 | 命令行冒烟 | `build/panel/graceful-panel` | 需要图形环境 |
 | 集成实测 | 登录 Graceful session 后启动 panel | 后续 session 编排接入后执行 |
 
@@ -58,6 +58,7 @@
 | 2026-09-17 | task | Power 按钮需要提供关机、重启、登出、锁屏 | 新增 Power popover 菜单和 `panel-power-action` 命令映射/执行模块 | 本地构建/测试通过；未自动触发真实电源/session 动作 |
 | 2026-09-17 | task | 右侧状态区需要移除网络/声音并增加 workspace/tray | 移除 Network/Volume 按钮；新增 workspace 指示按钮和 tray 展开按钮/透明 popover/model 骨架；无托盘项时隐藏 tray 按钮，菜单开合时箭头带旋转动画 | 本地构建/测试通过 |
 | 2026-09-17 | task | tray 和 Power 之间需要显示网速、CPU、内存状态 | 新增 net speed、CPU、MEM 三个 GTK/GObject 状态项和 `panel-system-monitor-model` 解析/格式化模块 | 本地构建/测试通过 |
+| 2026-09-17 | task | panel 需要显示实现托盘协议的进程 | 新增 `org.kde.StatusNotifierWatcher` watcher，接收 StatusNotifier/AppIndicator 项注册，tray model 支持注册、去重、注销和属性更新；XEmbed 待后续实现 | 定向测试通过，等待全量和远端验证 |
 | 2026-09-17 | task | CPU 和 MEM 信息需要放到同一个组件里，CPU 放下面 | 新增资源组合状态项，MEM 显示在上行，CPU 显示在下行；status area 不再分别挂载独立 CPU/MEM item | panel 监控模型定向测试通过 |
 | 2026-09-17 | task | 网速和资源监控宽度跳动导致右侧频繁调整 | 网速与资源状态 label 设置固定字符宽度；资源组件移除 CPU 温度显示以稳定宽度 | 全量构建、19 个测试和 `git diff --check` 通过 |
 

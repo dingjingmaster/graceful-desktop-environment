@@ -1,0 +1,11 @@
+Package: graceful-desktop-environment
+Version: @VERSION@
+Section: x11
+Priority: optional
+Architecture: @ARCH@
+Maintainer: dingjing <dingjing@localhost>
+Installed-Size: @INSTALLED_SIZE@
+Depends: libc6, libglib2.0-0t64 | libglib2.0-0, libgtk-4-1, liblightdm-gobject-1-0, libx11-6, lightdm, mutter, ibus, ibus-rime, gnome-terminal | terminator | mate-terminal, nautilus | caja, gnome-control-center, gnome-screensaver | xdg-utils, systemd
+Description: Graceful GTK desktop environment
+ Graceful Desktop Environment provides a LightDM greeter, session root
+ process, wallpaper desktop process and single GTK panel.

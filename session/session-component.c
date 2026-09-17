@@ -10,6 +10,10 @@
 
 #include "session-component.h"
 
+#ifndef GRACEFUL_SESSION_BINDIR
+#define GRACEFUL_SESSION_BINDIR "/usr/bin"
+#endif
+
 struct _GracefulSessionComponent
 {
     GObject parentInstance;
@@ -89,14 +93,12 @@ gboolean graceful_session_component_get_oneshot (const GracefulSessionComponent*
 
 GPtrArray* graceful_session_component_list_new_default (void)
 {
-    const char* mutterArgv[] = { "mutter", "--replace", NULL };
     const char* ibusArgv[] = { "ibus-daemon", "--daemonize", "--xim", NULL };
     const char* rimeArgv[] = { "ibus", "engine", "rime", NULL };
-    const char* desktopArgv[] = { "graceful-desktop", NULL };
-    const char* panelArgv[] = { "graceful-panel", NULL };
+    const char* desktopArgv[] = { GRACEFUL_SESSION_BINDIR "/graceful-desktop", NULL };
+    const char* panelArgv[] = { GRACEFUL_SESSION_BINDIR "/graceful-panel", NULL };
     GPtrArray* components = g_ptr_array_new_with_free_func (g_object_unref);
 
-    g_ptr_array_add (components, graceful_session_component_new ("mutter", mutterArgv, TRUE, FALSE));
     g_ptr_array_add (components, graceful_session_component_new ("ibus-daemon", ibusArgv, FALSE, TRUE));
     g_ptr_array_add (components, graceful_session_component_new ("ibus-rime", rimeArgv, FALSE, TRUE));
     g_ptr_array_add (components, graceful_session_component_new ("graceful-desktop", desktopArgv, TRUE, FALSE));
