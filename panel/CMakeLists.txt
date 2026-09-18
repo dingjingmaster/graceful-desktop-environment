@@ -76,6 +76,8 @@ add_library(graceful-panel-core STATIC
     panel-workspace-item.h
     panel-workspace-model.c
     panel-workspace-model.h
+    panel-xembed-tray-manager.c
+    panel-xembed-tray-manager.h
     panel-x11-protocol.c
     panel-x11-protocol.h
 )

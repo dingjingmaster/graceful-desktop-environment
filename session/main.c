@@ -21,10 +21,27 @@
  */
 
 #include "session-definition.h"
+#include "session-compositor.h"
 #include "session-manager.h"
 
+#include <glib-unix.h>
 #include <glib.h>
 #include <locale.h>
+#include <signal.h>
+#include <unistd.h>
+
+static gboolean on_session_termination_signal (gpointer userData)
+{
+    const char* sessionCommand = userData;
+    g_autoptr(GError) compositorError = NULL;
+
+    if (!graceful_session_compositor_terminate_parent (sessionCommand, &compositorError) && compositorError != NULL) {
+        g_printerr ("graceful-session: %s\n", compositorError->message);
+    }
+
+    _exit (128 + SIGTERM);
+    return G_SOURCE_REMOVE;
+}
 
 static GStrv graceful_session_build_search_dirs (void)
 {
@@ -73,12 +90,15 @@ int main (int argc, char* argv[])
     g_auto(GStrv) optionCommandArgv = NULL;
     g_autofree char* sessionId = NULL;
     const char* const* commandArgv = NULL;
+    gboolean defaultDesktopMode = FALSE;
     GOptionEntry entries[] = {
         { "session", 0, 0, G_OPTION_ARG_STRING, &sessionId, "Session id to load", "SESSION" },
         { G_OPTION_REMAINING, 0, 0, G_OPTION_ARG_STRING_ARRAY, &optionCommandArgv, "Command to run", "COMMAND" },
         { NULL }
     };
     g_autoptr(GOptionContext) context = NULL;
+    guint sigtermSourceId = 0;
+    guint sigintSourceId = 0;
     gboolean ok = FALSE;
 
     setlocale (LC_ALL, "");
@@ -102,10 +122,30 @@ int main (int argc, char* argv[])
     if (commandArgv == NULL || commandArgv[0] == NULL) {
         defaultCommand = graceful_session_build_default_command ();
         commandArgv = (const char* const*) defaultCommand;
+        defaultDesktopMode = commandArgv == NULL || commandArgv[0] == NULL;
     }
 
     manager = graceful_session_manager_new (definition, commandArgv);
+    if (defaultDesktopMode) {
+        sigtermSourceId = g_unix_signal_add (SIGTERM, on_session_termination_signal, argv[0]);
+        sigintSourceId = g_unix_signal_add (SIGINT, on_session_termination_signal, argv[0]);
+    }
     ok = graceful_session_manager_run (manager, NULL, &error);
+    if (sigtermSourceId != 0) {
+        g_source_remove (sigtermSourceId);
+        sigtermSourceId = 0;
+    }
+    if (sigintSourceId != 0) {
+        g_source_remove (sigintSourceId);
+        sigintSourceId = 0;
+    }
+    if (defaultDesktopMode) {
+        g_autoptr(GError) compositorError = NULL;
+
+        if (!graceful_session_compositor_terminate_parent (argv[0], &compositorError) && compositorError != NULL) {
+            g_printerr ("graceful-session: %s\n", compositorError->message);
+        }
+    }
     if (!ok) {
         if (error != NULL) {
             g_printerr ("graceful-session: %s\n", error->message);

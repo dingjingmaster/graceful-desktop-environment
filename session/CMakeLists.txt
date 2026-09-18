@@ -6,6 +6,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB REQUIRED IMPORTED_TARGET glib-2.0)
 pkg_check_modules(GOBJECT REQUIRED IMPORTED_TARGET gobject-2.0)
 pkg_check_modules(GIO REQUIRED IMPORTED_TARGET gio-2.0)
+pkg_check_modules(GIO_UNIX REQUIRED IMPORTED_TARGET gio-unix-2.0)
 
 add_library(graceful-session-core STATIC
     session-component.c
@@ -16,6 +17,10 @@ add_library(graceful-session-core STATIC
     session-environment.h
     session-autostart.c
     session-autostart.h
+    session-compositor.c
+    session-compositor.h
+    session-launcher.c
+    session-launcher.h
     session-process.c
     session-process.h
     session-manager.c
@@ -25,10 +30,18 @@ target_include_directories(graceful-session-core PUBLIC ${CMAKE_CURRENT_SOURCE_D
 target_compile_definitions(graceful-session-core PRIVATE
     GRACEFUL_SESSION_BINDIR="${CMAKE_INSTALL_FULL_BINDIR}"
 )
-target_link_libraries(graceful-session-core PUBLIC PkgConfig::GLIB PkgConfig::GOBJECT PkgConfig::GIO)
+target_link_libraries(graceful-session-core PUBLIC
+    PkgConfig::GLIB
+    PkgConfig::GOBJECT
+    PkgConfig::GIO
+    PkgConfig::GIO_UNIX
+)
 
 add_executable(graceful-session main.c)
 target_link_libraries(graceful-session graceful-session-core)
+
+add_executable(graceful-session-launcher launcher-main.c)
+target_link_libraries(graceful-session-launcher graceful-session-core)
 
 add_executable(session-definition-test
     tests/test-session-definition.c
@@ -54,11 +67,23 @@ add_executable(session-autostart-test
 target_link_libraries(session-autostart-test graceful-session-core)
 add_test(NAME session-autostart-test COMMAND session-autostart-test)
 
+add_executable(session-compositor-test
+    tests/test-session-compositor.c
+)
+target_link_libraries(session-compositor-test graceful-session-core)
+add_test(NAME session-compositor-test COMMAND session-compositor-test)
+
+add_executable(session-launcher-test
+    tests/test-session-launcher.c
+)
+target_link_libraries(session-launcher-test graceful-session-core)
+add_test(NAME session-launcher-test COMMAND session-launcher-test)
+
 add_executable(session-process-test
     tests/test-session-process.c
 )
 target_link_libraries(session-process-test graceful-session-core)
 add_test(NAME session-process-test COMMAND session-process-test)
 
-install(TARGETS graceful-session RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS graceful-session graceful-session-launcher RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 install(FILES graceful.desktop DESTINATION ${CMAKE_INSTALL_DATADIR}/wayland-sessions)

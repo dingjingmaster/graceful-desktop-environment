@@ -77,7 +77,7 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (TrayPropertiesRequest, tray_properties_request_fr
 
 static GVariant* graceful_panel_status_notifier_watcher_registered_items_variant (void)
 {
-    g_autoptr(GPtrArray) items = graceful_panel_tray_model_list_items ();
+    g_autoptr(GPtrArray) items = graceful_panel_tray_model_list_status_notifier_items ();
     GVariantBuilder builder;
 
     g_variant_builder_init (&builder, G_VARIANT_TYPE ("as"));
@@ -126,6 +126,16 @@ void graceful_panel_status_notifier_address_free (GracefulPanelStatusNotifierAdd
     g_clear_pointer (&address->busName, g_free);
     g_clear_pointer (&address->objectPath, g_free);
     g_free (address);
+}
+
+void graceful_panel_tray_menu_item_free (GracefulPanelTrayMenuItem* item)
+{
+    if (item == NULL) {
+        return;
+    }
+
+    g_clear_pointer (&item->label, g_free);
+    g_free (item);
 }
 
 static void emit_item_signal (GracefulPanelStatusNotifierWatcher* self, const char* signalName, const char* id)
@@ -191,19 +201,294 @@ static void watch_registered_item (GracefulPanelStatusNotifierWatcher* self, Gra
 
 static char* lookup_string_property (GVariant* properties, const char* key)
 {
-    GVariant* value = NULL;
+    g_autoptr(GVariant) value = NULL;
+    g_autoptr(GVariant) unwrapped = NULL;
+    GVariant* effective = NULL;
     char* text = NULL;
 
-    if (!g_variant_lookup (properties, key, "v", &value)) {
+    value = g_variant_lookup_value (properties, key, NULL);
+    if (value == NULL) {
         return NULL;
     }
 
-    if (g_variant_is_of_type (value, G_VARIANT_TYPE_STRING)) {
-        text = g_strdup (g_variant_get_string (value, NULL));
+    if (g_variant_is_of_type (value, G_VARIANT_TYPE_VARIANT)) {
+        unwrapped = g_variant_get_variant (value);
     }
 
-    g_variant_unref (value);
+    effective = unwrapped != NULL ? unwrapped : value;
+    if (g_variant_is_of_type (effective, G_VARIANT_TYPE_STRING)) {
+        text = g_strdup (g_variant_get_string (effective, NULL));
+    }
+
     return text;
+}
+
+static char* lookup_object_path_property (GVariant* properties, const char* key)
+{
+    g_autoptr(GVariant) value = NULL;
+    g_autoptr(GVariant) unwrapped = NULL;
+    GVariant* effective = NULL;
+    char* text = NULL;
+
+    value = g_variant_lookup_value (properties, key, NULL);
+    if (value == NULL) {
+        return NULL;
+    }
+
+    if (g_variant_is_of_type (value, G_VARIANT_TYPE_VARIANT)) {
+        unwrapped = g_variant_get_variant (value);
+    }
+
+    effective = unwrapped != NULL ? unwrapped : value;
+    if (g_variant_is_of_type (effective, G_VARIANT_TYPE_OBJECT_PATH)) {
+        text = g_strdup (g_variant_get_string (effective, NULL));
+    }
+
+    return text;
+}
+
+static gboolean lookup_bool_property (GVariant* properties, const char* key, gboolean fallback)
+{
+    g_autoptr(GVariant) value = NULL;
+    g_autoptr(GVariant) unwrapped = NULL;
+    GVariant* effective = NULL;
+    gboolean result = fallback;
+
+    value = g_variant_lookup_value (properties, key, NULL);
+    if (value == NULL) {
+        return fallback;
+    }
+
+    if (g_variant_is_of_type (value, G_VARIANT_TYPE_VARIANT)) {
+        unwrapped = g_variant_get_variant (value);
+    }
+
+    effective = unwrapped != NULL ? unwrapped : value;
+    if (g_variant_is_of_type (effective, G_VARIANT_TYPE_BOOLEAN)) {
+        result = g_variant_get_boolean (effective);
+    }
+
+    return result;
+}
+
+static void on_item_action_done (GObject* sourceObject, GAsyncResult* result, gpointer userData)
+{
+    GDBusConnection* connection = G_DBUS_CONNECTION (sourceObject);
+    g_autoptr(GVariant) reply = NULL;
+    g_autoptr(GError) error = NULL;
+
+    reply = g_dbus_connection_call_finish (connection, result, &error);
+    if (reply == NULL) {
+        g_warning ("StatusNotifierItem action failed: %s", error->message);
+    }
+}
+
+static void call_status_notifier_item_method (const GracefulPanelTrayItem* item, const char* methodName, int x, int y)
+{
+    g_autoptr(GDBusConnection) connection = NULL;
+    g_autoptr(GError) error = NULL;
+
+    if (item == NULL || item->busName == NULL || item->busName[0] == '\0') {
+        return;
+    }
+
+    if (item->objectPath == NULL || item->objectPath[0] != '/') {
+        return;
+    }
+
+    connection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+    if (connection == NULL) {
+        g_warning ("Failed to connect to session bus for tray action: %s", error->message);
+        return;
+    }
+
+    g_dbus_connection_call (
+        connection,
+        item->busName,
+        item->objectPath,
+        STATUS_NOTIFIER_ITEM_INTERFACE,
+        methodName,
+        g_variant_new ("(ii)", x, y),
+        NULL,
+        G_DBUS_CALL_FLAGS_NONE,
+        800,
+        NULL,
+        on_item_action_done,
+        NULL
+    );
+}
+
+void graceful_panel_status_notifier_item_activate (const GracefulPanelTrayItem* item, int x, int y)
+{
+    call_status_notifier_item_method (item, "Activate", x, y);
+}
+
+void graceful_panel_status_notifier_item_context_menu (const GracefulPanelTrayItem* item, int x, int y)
+{
+    call_status_notifier_item_method (item, "ContextMenu", x, y);
+}
+
+static GracefulPanelTrayMenuItem* tray_menu_item_from_layout (GVariant* layout)
+{
+    GVariant* properties = NULL;
+    GracefulPanelTrayMenuItem* item = NULL;
+    gboolean enabled = TRUE;
+    gboolean visible = TRUE;
+    int id = 0;
+    g_autofree char* label = NULL;
+    g_autofree char* type = NULL;
+
+    if (layout == NULL || g_variant_n_children (layout) < 3) {
+        return NULL;
+    }
+
+    g_variant_get_child (layout, 0, "i", &id);
+    properties = g_variant_get_child_value (layout, 1);
+    label = lookup_string_property (properties, "label");
+    type = lookup_string_property (properties, "type");
+    enabled = lookup_bool_property (properties, "enabled", TRUE);
+    visible = lookup_bool_property (properties, "visible", TRUE);
+
+    if (g_strcmp0 (type, "separator") == 0 || label == NULL || label[0] == '\0') {
+        g_variant_unref (properties);
+        return NULL;
+    }
+
+    item = g_new0 (GracefulPanelTrayMenuItem, 1);
+    item->id = id;
+    item->label = g_steal_pointer (&label);
+    item->enabled = enabled;
+    item->visible = visible;
+    g_variant_unref (properties);
+
+    return item;
+}
+
+static void append_tray_menu_children (GPtrArray* items, GVariant* layout)
+{
+    g_autoptr(GVariant) children = NULL;
+    gsize childCount = 0;
+
+    if (layout == NULL || g_variant_n_children (layout) < 3) {
+        return;
+    }
+
+    children = g_variant_get_child_value (layout, 2);
+    childCount = g_variant_n_children (children);
+    for (gsize i = 0; i < childCount; i++) {
+        g_autoptr(GVariant) childValue = g_variant_get_child_value (children, i);
+        g_autoptr(GVariant) childLayout = NULL;
+        GracefulPanelTrayMenuItem* item = NULL;
+
+        if (g_variant_is_of_type (childValue, G_VARIANT_TYPE_VARIANT)) {
+            childLayout = g_variant_get_variant (childValue);
+        }
+        else {
+            childLayout = g_variant_ref (childValue);
+        }
+
+        item = tray_menu_item_from_layout (childLayout);
+        if (item != NULL) {
+            g_ptr_array_add (items, item);
+        }
+    }
+}
+
+GPtrArray* graceful_panel_status_notifier_menu_items_from_layout (GVariant* layout)
+{
+    GPtrArray* items = g_ptr_array_new_with_free_func ((GDestroyNotify) graceful_panel_tray_menu_item_free);
+
+    append_tray_menu_children (items, layout);
+
+    return items;
+}
+
+GPtrArray* graceful_panel_status_notifier_item_load_menu (const GracefulPanelTrayItem* item)
+{
+    g_autoptr(GDBusConnection) connection = NULL;
+    g_autoptr(GVariant) reply = NULL;
+    g_autoptr(GVariant) propertyNames = NULL;
+    g_autoptr(GVariant) layout = NULL;
+    g_autoptr(GError) error = NULL;
+    GVariantBuilder builder;
+    guint revision = 0;
+    GPtrArray* items = g_ptr_array_new_with_free_func ((GDestroyNotify) graceful_panel_tray_menu_item_free);
+
+    if (item == NULL || item->busName == NULL || item->busName[0] == '\0') {
+        return items;
+    }
+
+    if (item->menuPath == NULL || item->menuPath[0] != '/') {
+        return items;
+    }
+
+    connection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+    if (connection == NULL) {
+        g_warning ("Failed to connect to session bus for tray menu: %s", error->message);
+        return items;
+    }
+
+    g_variant_builder_init (&builder, G_VARIANT_TYPE ("as"));
+    propertyNames = g_variant_ref_sink (g_variant_builder_end (&builder));
+    reply = g_dbus_connection_call_sync (
+        connection,
+        item->busName,
+        item->menuPath,
+        "com.canonical.dbusmenu",
+        "GetLayout",
+        g_variant_new ("(ii@as)", 0, 1, g_steal_pointer (&propertyNames)),
+        G_VARIANT_TYPE ("(u(ia{sv}av))"),
+        G_DBUS_CALL_FLAGS_NONE,
+        800,
+        NULL,
+        &error
+    );
+    if (reply == NULL) {
+        g_warning ("Failed to load tray menu layout: %s", error->message);
+        return items;
+    }
+
+    g_variant_get (reply, "(u@(ia{sv}av))", &revision, &layout);
+    g_ptr_array_unref (items);
+    items = graceful_panel_status_notifier_menu_items_from_layout (layout);
+
+    return items;
+}
+
+void graceful_panel_status_notifier_menu_item_click (const GracefulPanelTrayItem* item, int menuItemId)
+{
+    g_autoptr(GDBusConnection) connection = NULL;
+    g_autoptr(GError) error = NULL;
+    guint32 timestamp = (guint32) (g_get_monotonic_time () / 1000);
+
+    if (item == NULL || item->busName == NULL || item->busName[0] == '\0') {
+        return;
+    }
+
+    if (item->menuPath == NULL || item->menuPath[0] != '/') {
+        return;
+    }
+
+    connection = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
+    if (connection == NULL) {
+        g_warning ("Failed to connect to session bus for tray menu event: %s", error->message);
+        return;
+    }
+
+    g_dbus_connection_call (
+        connection,
+        item->busName,
+        item->menuPath,
+        "com.canonical.dbusmenu",
+        "Event",
+        g_variant_new ("(isvu)", menuItemId, "clicked", g_variant_new_int32 (0), timestamp),
+        NULL,
+        G_DBUS_CALL_FLAGS_NONE,
+        800,
+        NULL,
+        on_item_action_done,
+        NULL
+    );
 }
 
 static void on_item_properties_loaded (GObject* sourceObject, GAsyncResult* result, gpointer userData)
@@ -215,6 +500,7 @@ static void on_item_properties_loaded (GObject* sourceObject, GAsyncResult* resu
     GVariant* properties = NULL;
     g_autofree char* title = NULL;
     g_autofree char* iconName = NULL;
+    g_autofree char* menuPath = NULL;
 
     reply = g_dbus_connection_call_finish (connection, result, &error);
     if (reply == NULL) {
@@ -224,7 +510,15 @@ static void on_item_properties_loaded (GObject* sourceObject, GAsyncResult* resu
     g_variant_get (reply, "(@a{sv})", &properties);
     title = lookup_string_property (properties, "Title");
     iconName = lookup_string_property (properties, "IconName");
-    graceful_panel_tray_model_upsert_item (request->id, title, iconName);
+    menuPath = lookup_object_path_property (properties, "Menu");
+    graceful_panel_tray_model_upsert_item (
+        request->id,
+        request->busName,
+        request->objectPath,
+        title,
+        iconName,
+        menuPath
+    );
     g_variant_unref (properties);
 }
 
@@ -264,7 +558,14 @@ static void register_status_notifier_item (
         return;
     }
 
-    graceful_panel_tray_model_upsert_item (address->id, address->busName, "application-x-executable-symbolic");
+    graceful_panel_tray_model_upsert_item (
+        address->id,
+        address->busName,
+        address->objectPath,
+        address->busName,
+        "application-x-executable-symbolic",
+        NULL
+    );
     watch_registered_item (self, address);
     emit_item_signal (self, "StatusNotifierItemRegistered", address->id);
     load_item_properties (self, address);

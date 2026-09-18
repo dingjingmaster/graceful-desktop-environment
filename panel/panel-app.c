@@ -23,6 +23,7 @@
 
 #include "panel-status-notifier-watcher.h"
 #include "panel-window.h"
+#include "panel-xembed-tray-manager.h"
 
 #include <gtk/gtk.h>
 
@@ -32,6 +33,7 @@ struct _GracefulPanelApp
 
     GtkApplication* gtkApp;
     GracefulPanelStatusNotifierWatcher* statusNotifierWatcher;
+    GracefulPanelXEmbedTrayManager* xembedTrayManager;
 };
 
 G_DEFINE_TYPE (GracefulPanelApp, graceful_panel_app, G_TYPE_OBJECT)
@@ -246,21 +248,66 @@ static void setup_panel_style (void)
         "  padding: 0;"
         "}"
         ".panel-tray-menu {"
-        "  min-width: 180px;"
-        "  padding: 8px;"
+        "  min-width: 36px;"
+        "  padding: 4px;"
         "  color: rgba(255, 255, 255, 0.96);"
         "  background: rgba(18, 24, 31, 0.58);"
         "  box-shadow: inset 0 1px rgba(255, 255, 255, 0.18), inset 0 -1px rgba(0, 0, 0, 0.36);"
         "}"
-        ".panel-tray-row {"
+        ".panel-tray-icon-button {"
+        "  min-width: 28px;"
+        "  min-height: 28px;"
+        "  padding: 0;"
+        "  border: 0;"
+        "  outline: 0;"
+        "  box-shadow: none;"
+        "  background-image: none;"
+        "  border-radius: 5px;"
+        "  background: transparent;"
+        "}"
+        ".panel-tray-icon-button:hover {"
+        "  background: rgba(255, 255, 255, 0.13);"
+        "}"
+        ".panel-tray-icon-button:active {"
+        "  background: rgba(255, 255, 255, 0.18);"
+        "}"
+        ".panel-tray-icon-image {"
+        "  color: rgba(255, 255, 255, 0.96);"
+        "}"
+        "popover.panel-tray-item-popover > contents {"
+        "  border: 0;"
+        "  outline: 0;"
+        "  box-shadow: none;"
+        "  background: transparent;"
+        "  padding: 0;"
+        "}"
+        ".panel-tray-item-menu {"
+        "  min-width: 128px;"
+        "  padding: 6px;"
+        "  color: rgba(255, 255, 255, 0.96);"
+        "  background: rgba(18, 24, 31, 0.78);"
+        "  box-shadow: inset 0 1px rgba(255, 255, 255, 0.18), inset 0 -1px rgba(0, 0, 0, 0.36);"
+        "}"
+        ".panel-tray-menu-item {"
         "  min-height: 30px;"
-        "  padding: 0 8px;"
+        "  padding: 0 10px;"
+        "  border: 0;"
+        "  outline: 0;"
+        "  box-shadow: none;"
+        "  border-radius: 5px;"
+        "  color: rgba(255, 255, 255, 0.96);"
+        "  background: transparent;"
+        "  background-image: none;"
         "}"
-        ".panel-tray-icon-box {"
-        "  border-radius: 4px;"
-        "  background: rgba(255, 255, 255, 0.14);"
+        ".panel-tray-menu-item:hover {"
+        "  background: rgba(255, 255, 255, 0.13);"
         "}"
-        ".panel-tray-label,"
+        ".panel-tray-menu-item:active {"
+        "  background: rgba(255, 255, 255, 0.18);"
+        "}"
+        ".panel-tray-menu-item label {"
+        "  color: rgba(255, 255, 255, 0.96);"
+        "}"
         ".panel-tray-empty-label,"
         ".panel-workspace-button label {"
         "  color: rgba(255, 255, 255, 0.96);"
@@ -307,9 +354,11 @@ static void setup_panel_style (void)
 
 static void graceful_panel_app_activate (GtkApplication* gtkApp, gpointer userData)
 {
+    GracefulPanelApp* self = GRACEFUL_PANEL_APP (userData);
     GtkWidget* window = NULL;
 
     setup_panel_style ();
+    graceful_panel_xembed_tray_manager_start (self->xembedTrayManager);
 
     window = graceful_panel_window_new (gtkApp);
     gtk_window_present (GTK_WINDOW (window));
@@ -320,6 +369,7 @@ static void graceful_panel_app_dispose (GObject* object)
     GracefulPanelApp* self = GRACEFUL_PANEL_APP (object);
 
     g_clear_object (&self->statusNotifierWatcher);
+    g_clear_object (&self->xembedTrayManager);
     g_clear_object (&self->gtkApp);
 
     G_OBJECT_CLASS (graceful_panel_app_parent_class)->dispose (object);
@@ -335,7 +385,8 @@ static void graceful_panel_app_class_init (GracefulPanelAppClass* klass)
 static void graceful_panel_app_init (GracefulPanelApp* self)
 {
     self->statusNotifierWatcher = graceful_panel_status_notifier_watcher_new ();
-    self->gtkApp = gtk_application_new ("org.graceful.panel", G_APPLICATION_DEFAULT_FLAGS);
+    self->xembedTrayManager = graceful_panel_xembed_tray_manager_new ();
+    self->gtkApp = gtk_application_new ("org.graceful.panel", G_APPLICATION_NON_UNIQUE);
     g_signal_connect (self->gtkApp, "activate", G_CALLBACK (graceful_panel_app_activate), self);
     graceful_panel_status_notifier_watcher_start (self->statusNotifierWatcher);
 }

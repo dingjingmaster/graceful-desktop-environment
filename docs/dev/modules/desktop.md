@@ -16,7 +16,7 @@
 
 ## 2. 当前行为
 
-- 用户可见行为：`graceful-desktop` 启动 GTK4 应用，创建无边框桌面窗口；从壁纸目录随机选择图片，以 cover 模式铺满窗口；切换壁纸时旧图淡出、新图淡入；目录不存在、目录为空或图片加载失败时绘制带浅色 `Graceful Linux` 字样的内置极简线条背景。
+- 用户可见行为：`graceful-desktop` 启动非唯一 GTK4 应用，创建无边框桌面窗口；从壁纸目录随机选择图片，以 cover 模式铺满窗口；切换壁纸时旧图淡出、新图淡入；目录不存在、目录为空或图片加载失败时绘制带浅色 `Graceful Linux` 字样的内置极简线条背景。
 - 窗口协议：X11/Xwayland 下设置 `_NET_WM_WINDOW_TYPE_DESKTOP` 和 sticky/skip taskbar/skip pager/below 状态；运行期间每 500ms 按 X root 几何重新同步窗口尺寸和层级，适配分辨率或虚拟 root 尺寸变化。
 - 配置/接口/数据：支持环境变量 `GRACEFUL_DESKTOP_WALLPAPER_DIR` 指定壁纸目录；支持 `GRACEFUL_DESKTOP_WALLPAPER_INTERVAL` 指定随机切换间隔，单位秒。
 - 默认规则：未指定壁纸目录时使用 `~/Pictures/Wallpapers`；未指定或非法间隔时使用 300 秒。
@@ -44,6 +44,7 @@
 |------|------|-----------|----------|------|
 | 2026-09-17 | task | 新增桌面背景进程第一阶段 | 已实现 GObject 主体框架、GTK4 全屏背景窗口、随机壁纸扫描、定时切换和整图渐变过渡 | `cmake -S . -B build && cmake --build build`、`ctest --test-dir build --output-on-failure` 通过 |
 | 2026-09-17 | fix | 桌面窗口会遮盖 panel 或不能随分辨率变化铺满 | X11/Xwayland 下按 EWMH desktop window 协议设置窗口类型与状态，并定时同步 X root 几何 | 本地构建/测试通过；测试机 `xwininfo` 验证 desktop 尺寸跟随 root |
+| 2026-09-17 | fix | desktop 启动时可能因 GTK application 唯一实例注册等待 session bus | `graceful-desktop` 改为 `G_APPLICATION_NON_UNIQUE`，避免桌面壳依赖 session bus 注册唯一应用名 | 全量构建、22 个测试和 `git diff --check` 通过 |
 
 ## 6. 变更记录
 

@@ -9,7 +9,9 @@
  */
 #include "panel-tray-item.h"
 
+#include "panel-status-notifier-watcher.h"
 #include "panel-tray-model.h"
+#include "panel-xembed-tray-manager.h"
 
 #define TRAY_ARROW_ANIMATION_US 160000
 #define TRAY_VISIBILITY_REFRESH_INTERVAL_MS 1000
@@ -27,6 +29,16 @@ struct _GracefulPanelTrayItemWidget
     double animationStartAngle;
     double animationTargetAngle;
     double arrowAngle;
+};
+
+typedef struct _TrayMenuClickData TrayMenuClickData;
+
+struct _TrayMenuClickData
+{
+    GracefulPanelTrayItemWidget* owner;
+    GracefulPanelTrayItem* trayItem;
+    GtkWidget* popover;
+    int menuItemId;
 };
 
 G_DEFINE_TYPE (GracefulPanelTrayItemWidget, graceful_panel_tray_item_widget, GTK_TYPE_BUTTON)
@@ -123,38 +135,218 @@ static void set_tray_arrow_target (GracefulPanelTrayItemWidget* self, double tar
     );
 }
 
-static void clear_box_children (GtkWidget* box)
+static void clear_flow_box_children (GtkWidget* flowBox)
 {
-    GtkWidget* child = gtk_widget_get_first_child (box);
+    GtkWidget* child = gtk_widget_get_first_child (flowBox);
 
     while (child != NULL) {
         GtkWidget* next = gtk_widget_get_next_sibling (child);
 
-        gtk_box_remove (GTK_BOX (box), child);
+        gtk_flow_box_remove (GTK_FLOW_BOX (flowBox), child);
         child = next;
     }
 }
 
-static GtkWidget* create_tray_row (GracefulPanelTrayItem* item)
+static void tray_menu_click_data_free (TrayMenuClickData* data)
 {
-    GtkWidget* row = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 8);
-    GtkWidget* iconBox = gtk_box_new (GTK_ORIENTATION_HORIZONTAL, 0);
+    if (data == NULL) {
+        return;
+    }
+
+    g_clear_pointer (&data->trayItem, graceful_panel_tray_item_free);
+    g_free (data);
+}
+
+static void on_tray_menu_popover_closed (GtkPopover* popover, gpointer userData)
+{
+    GtkWidget* widget = GTK_WIDGET (popover);
+
+    if (gtk_widget_get_parent (widget) != NULL) {
+        gtk_widget_unparent (widget);
+    }
+    g_object_unref (popover);
+}
+
+static void on_tray_menu_item_clicked (GtkButton* button, gpointer userData)
+{
+    TrayMenuClickData* data = userData;
+
+    graceful_panel_status_notifier_menu_item_click (data->trayItem, data->menuItemId);
+    gtk_popover_popdown (GTK_POPOVER (data->popover));
+    gtk_popover_popdown (GTK_POPOVER (data->owner->popover));
+}
+
+static GtkWidget* create_tray_menu_row (
+    GracefulPanelTrayItemWidget* self,
+    GtkWidget* popover,
+    GracefulPanelTrayItem* trayItem,
+    GracefulPanelTrayMenuItem* menuItem
+)
+{
+    GtkWidget* button = gtk_button_new_with_label (menuItem->label);
+    TrayMenuClickData* data = g_new0 (TrayMenuClickData, 1);
+
+    data->owner = self;
+    data->trayItem = graceful_panel_tray_item_copy (trayItem);
+    data->popover = popover;
+    data->menuItemId = menuItem->id;
+    gtk_widget_add_css_class (button, "panel-tray-menu-item");
+    gtk_widget_set_sensitive (button, menuItem->enabled);
+    g_signal_connect_data (
+        button,
+        "clicked",
+        G_CALLBACK (on_tray_menu_item_clicked),
+        data,
+        (GClosureNotify) tray_menu_click_data_free,
+        0
+    );
+
+    return button;
+}
+
+static gboolean show_tray_dbus_menu (
+    GracefulPanelTrayItemWidget* self,
+    GtkWidget* anchor,
+    GracefulPanelTrayItem* trayItem
+)
+{
+    g_autoptr(GPtrArray) menuItems = graceful_panel_status_notifier_item_load_menu (trayItem);
+    GtkWidget* popover = NULL;
+    GtkWidget* box = NULL;
+    gboolean hasVisibleItems = FALSE;
+
+    if (menuItems->len == 0) {
+        return FALSE;
+    }
+
+    popover = gtk_popover_new ();
+    box = gtk_box_new (GTK_ORIENTATION_VERTICAL, 2);
+    gtk_widget_add_css_class (popover, "panel-tray-item-popover");
+    gtk_widget_add_css_class (box, "panel-tray-item-menu");
+    gtk_popover_set_child (GTK_POPOVER (popover), box);
+    gtk_popover_set_has_arrow (GTK_POPOVER (popover), FALSE);
+    gtk_popover_set_position (GTK_POPOVER (popover), GTK_POS_LEFT);
+    gtk_widget_set_parent (popover, anchor);
+    g_object_ref_sink (popover);
+    g_signal_connect (popover, "closed", G_CALLBACK (on_tray_menu_popover_closed), NULL);
+
+    for (guint i = 0; i < menuItems->len; i++) {
+        GracefulPanelTrayMenuItem* menuItem = g_ptr_array_index (menuItems, i);
+
+        if (!menuItem->visible) {
+            continue;
+        }
+
+        gtk_box_append (GTK_BOX (box), create_tray_menu_row (self, popover, trayItem, menuItem));
+        hasVisibleItems = TRUE;
+    }
+
+    if (!hasVisibleItems) {
+        gtk_popover_popdown (GTK_POPOVER (popover));
+        return FALSE;
+    }
+
+    gtk_popover_popup (GTK_POPOVER (popover));
+    return TRUE;
+}
+
+static void on_tray_item_button_clicked (GtkButton* button, gpointer userData)
+{
+    GracefulPanelTrayItem* item = g_object_get_data (G_OBJECT (button), "tray-item");
+    GracefulPanelTrayItemWidget* self = GRACEFUL_PANEL_TRAY_ITEM (userData);
+
+    if (item != NULL && item->xembedWindow != 0) {
+        return;
+    }
+
+    if (!show_tray_dbus_menu (self, GTK_WIDGET (button), item)) {
+        graceful_panel_status_notifier_item_activate (item, 0, 0);
+        gtk_popover_popdown (GTK_POPOVER (self->popover));
+    }
+}
+
+static void on_tray_item_right_pressed (
+    GtkGestureClick* gesture,
+    int pressCount,
+    double x,
+    double y,
+    gpointer userData
+)
+{
+    GtkWidget* button = gtk_event_controller_get_widget (GTK_EVENT_CONTROLLER (gesture));
+    GracefulPanelTrayItem* item = g_object_get_data (G_OBJECT (button), "tray-item");
+    GracefulPanelTrayItemWidget* self = GRACEFUL_PANEL_TRAY_ITEM (userData);
+
+    if (item != NULL && item->xembedWindow != 0) {
+        return;
+    }
+
+    if (!show_tray_dbus_menu (self, button, item)) {
+        graceful_panel_status_notifier_item_context_menu (item, (int) x, (int) y);
+        gtk_popover_popdown (GTK_POPOVER (self->popover));
+    }
+}
+
+static gboolean show_xembed_item_later (gpointer userData)
+{
+    GtkWidget* button = GTK_WIDGET (userData);
+    GracefulPanelTrayItem* item = g_object_get_data (G_OBJECT (button), "tray-item");
+
+    if (item != NULL && item->xembedWindow != 0) {
+        graceful_panel_xembed_tray_manager_show_item_for_widget (item->xembedWindow, button);
+    }
+
+    return G_SOURCE_REMOVE;
+}
+
+static void on_xembed_item_button_map (GtkWidget* widget, gpointer userData)
+{
+    g_idle_add_full (
+        G_PRIORITY_DEFAULT_IDLE,
+        show_xembed_item_later,
+        g_object_ref (widget),
+        g_object_unref
+    );
+}
+
+static void on_xembed_item_button_unmap (GtkWidget* widget, gpointer userData)
+{
+    GracefulPanelTrayItem* item = g_object_get_data (G_OBJECT (widget), "tray-item");
+
+    if (item != NULL && item->xembedWindow != 0) {
+        graceful_panel_xembed_tray_manager_hide_item (item->xembedWindow);
+    }
+}
+
+static GtkWidget* create_tray_icon_button (GracefulPanelTrayItemWidget* self, GracefulPanelTrayItem* item)
+{
+    GtkWidget* button = gtk_button_new ();
     GtkWidget* icon = gtk_image_new_from_icon_name (item->iconName);
-    GtkWidget* label = gtk_label_new (item->title);
+    GtkGesture* rightClick = gtk_gesture_click_new ();
 
-    gtk_widget_add_css_class (row, "panel-tray-row");
-    gtk_widget_add_css_class (iconBox, "panel-tray-icon-box");
-    gtk_widget_add_css_class (label, "panel-tray-label");
-    gtk_widget_set_size_request (iconBox, 18, 18);
+    gtk_widget_add_css_class (button, "panel-tray-icon-button");
+    gtk_widget_add_css_class (icon, "panel-tray-icon-image");
+    gtk_widget_set_size_request (button, 28, 28);
     gtk_image_set_icon_size (GTK_IMAGE (icon), GTK_ICON_SIZE_NORMAL);
-    gtk_widget_set_hexpand (label, TRUE);
-    gtk_widget_set_halign (label, GTK_ALIGN_START);
-    gtk_label_set_ellipsize (GTK_LABEL (label), PANGO_ELLIPSIZE_END);
-    gtk_box_append (GTK_BOX (iconBox), icon);
-    gtk_box_append (GTK_BOX (row), iconBox);
-    gtk_box_append (GTK_BOX (row), label);
+    gtk_image_set_pixel_size (GTK_IMAGE (icon), 16);
+    gtk_button_set_child (GTK_BUTTON (button), icon);
+    gtk_widget_set_tooltip_text (button, item->title);
+    g_object_set_data_full (
+        G_OBJECT (button),
+        "tray-item",
+        graceful_panel_tray_item_copy (item),
+        (GDestroyNotify) graceful_panel_tray_item_free
+    );
+    gtk_gesture_single_set_button (GTK_GESTURE_SINGLE (rightClick), GDK_BUTTON_SECONDARY);
+    gtk_widget_add_controller (button, GTK_EVENT_CONTROLLER (rightClick));
+    g_signal_connect (button, "clicked", G_CALLBACK (on_tray_item_button_clicked), self);
+    g_signal_connect (rightClick, "pressed", G_CALLBACK (on_tray_item_right_pressed), self);
+    if (item->xembedWindow != 0) {
+        g_signal_connect (button, "map", G_CALLBACK (on_xembed_item_button_map), NULL);
+        g_signal_connect (button, "unmap", G_CALLBACK (on_xembed_item_button_unmap), NULL);
+    }
 
-    return row;
+    return button;
 }
 
 static void populate_tray_menu (GracefulPanelTrayItemWidget* self)
@@ -162,17 +354,20 @@ static void populate_tray_menu (GracefulPanelTrayItemWidget* self)
     g_autoptr(GPtrArray) items = graceful_panel_tray_model_list_items ();
     guint i = 0;
 
-    clear_box_children (self->itemBox);
+    clear_flow_box_children (self->itemBox);
     if (items->len == 0) {
         GtkWidget* empty = gtk_label_new ("No tray items");
 
         gtk_widget_add_css_class (empty, "panel-tray-empty-label");
-        gtk_box_append (GTK_BOX (self->itemBox), empty);
+        gtk_flow_box_append (GTK_FLOW_BOX (self->itemBox), empty);
         return;
     }
 
     for (i = 0; i < items->len; ++i) {
-        gtk_box_append (GTK_BOX (self->itemBox), create_tray_row (g_ptr_array_index (items, i)));
+        gtk_flow_box_append (
+            GTK_FLOW_BOX (self->itemBox),
+            create_tray_icon_button (self, g_ptr_array_index (items, i))
+        );
     }
 }
 
@@ -180,9 +375,13 @@ static GtkWidget* create_tray_popover (GracefulPanelTrayItemWidget* self)
 {
     GtkWidget* popover = gtk_popover_new ();
 
-    self->itemBox = gtk_box_new (GTK_ORIENTATION_VERTICAL, 4);
+    self->itemBox = gtk_flow_box_new ();
     gtk_widget_add_css_class (popover, "panel-tray-popover");
     gtk_widget_add_css_class (self->itemBox, "panel-tray-menu");
+    gtk_flow_box_set_min_children_per_line (GTK_FLOW_BOX (self->itemBox), 1);
+    gtk_flow_box_set_max_children_per_line (GTK_FLOW_BOX (self->itemBox), 4);
+    gtk_flow_box_set_selection_mode (GTK_FLOW_BOX (self->itemBox), GTK_SELECTION_NONE);
+    gtk_orientable_set_orientation (GTK_ORIENTABLE (self->itemBox), GTK_ORIENTATION_HORIZONTAL);
     gtk_popover_set_child (GTK_POPOVER (popover), self->itemBox);
     gtk_popover_set_has_arrow (GTK_POPOVER (popover), FALSE);
     gtk_popover_set_position (GTK_POPOVER (popover), GTK_POS_TOP);
@@ -207,6 +406,7 @@ static void on_tray_button_clicked (GtkButton* button, gpointer userData)
 
 static void on_tray_popover_closed (GtkPopover* popover, gpointer userData)
 {
+    graceful_panel_xembed_tray_manager_hide_all ();
     set_tray_arrow_target (GRACEFUL_PANEL_TRAY_ITEM (userData), 0.0);
 }
 

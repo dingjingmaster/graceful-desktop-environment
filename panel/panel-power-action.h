@@ -24,6 +24,7 @@ typedef enum
 
 const char* graceful_panel_power_action_get_label (GracefulPanelPowerAction action);
 GPtrArray* graceful_panel_power_action_build_candidates (GracefulPanelPowerAction action);
+gboolean graceful_panel_power_action_is_graceful_mutter_argv (const char* const* argv);
 gboolean graceful_panel_power_action_run (GracefulPanelPowerAction action, GError** error);
 
 G_END_DECLS

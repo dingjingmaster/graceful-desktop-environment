@@ -19,7 +19,7 @@ install-remote: deb
 		"printf '%s\n' '$(REMOTE_PASSWORD)' | sudo -S apt-get install --reinstall -y /tmp/$$deb_name && \
 		printf '%s\n' '$(REMOTE_PASSWORD)' | sudo -S test -f /etc/lightdm/lightdm.conf.d/50-graceful.conf && \
 		printf '%s\n' '$(REMOTE_PASSWORD)' | sudo -S sed -n '1,80p' /etc/lightdm/lightdm.conf.d/50-graceful.conf && \
-		ls -l /usr/bin/graceful-greeter /usr/bin/graceful-session /usr/bin/graceful-desktop /usr/bin/graceful-panel /usr/share/xgreeters/graceful-greeter.desktop /usr/share/wayland-sessions/graceful.desktop && \
+		ls -l /usr/bin/graceful-greeter /usr/bin/graceful-session /usr/bin/graceful-session-launcher /usr/bin/graceful-desktop /usr/bin/graceful-panel /usr/share/xgreeters/graceful-greeter.desktop /usr/share/wayland-sessions/graceful.desktop && \
 		test ! -e /usr/share/xsessions/graceful.desktop"
 
 deploy-deb: install-remote

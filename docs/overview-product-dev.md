@@ -21,7 +21,7 @@
 ## 2. 架构边界
 
 - 模块划分：`greeter/` 放 LightDM greeter 私有 UI、认证和模型；`session/` 放登录后的 session 根进程；`desktop/` 放桌面壳背景进程；`panel/` 放桌面 panel 进程；`common/` 只放 greeter/session/settings-daemon/desktop/panel 共享的纯 C 公共库。
-- 进程/线程/内核边界：`graceful-greeter` 是由 LightDM 启动的独立 greeter 进程；Graceful session 入口由 LightDM 启动 `mutter --wayland --display-server -- /usr/bin/graceful-session`；`graceful-session` 是 mutter 启动的用户 session 根进程；默认 session 组件包含 `ibus-daemon --daemonize --xim`、`ibus engine rime`、`graceful-desktop`、`graceful-panel` 和 XDG Autostart 启动项。
+- 进程/线程/内核边界：`graceful-greeter` 是由 LightDM 启动的独立 greeter 进程；Graceful session 入口由 LightDM 启动 `graceful-session-launcher`；launcher 启动并托管 `mutter --wayland --display-server -- /usr/bin/graceful-session`，收到退出信号时负责 TERM/KILL mutter；`graceful-session` 是 mutter 启动的用户 session 根进程；默认 session 组件包含 `ibus-daemon --daemonize --xim`、`ibus engine rime`、`graceful-desktop`、`graceful-panel` 和 XDG Autostart 启动项。
 - 客户端/服务端/驱动边界：greeter 通过 `liblightdm-gobject-1` 与 LightDM daemon 交互。
 - 数据流：LightDM 用户列表/GTK 密码输入控件 -> greeter 登录模型 -> LightDM PAM prompt response；session 定义/环境 -> session manager -> GSubprocess；XDG autostart 目录 -> autostart desktop entry 过滤 -> GSubprocess；壁纸目录 -> wallpaper store -> wallpaper view -> GTK snapshot；panel 内置 item -> panel layout -> panel window；X11 `_NET_CLIENT_LIST`/窗口属性 -> panel window list -> task area 图标按钮和 hover 预览。
 - 控制流：GTK application activate -> LightDM daemon connect -> 用户触发 authenticate -> prompt response -> authentication-complete -> start session -> mutter 作为 Wayland compositor 启动 -> `graceful-session` 设置环境并启动默认组件 -> desktop 绘制背景、panel 提供桌面入口 -> 任一必需后台组件退出后 session 清理其它组件并结束。
@@ -45,7 +45,7 @@
 ## 4. 数据与配置
 
 - 核心数据结构：`GracefulGreeterLoginModel` 保存用户名、密码和 session key；`GracefulSessionDefinition`、`GracefulSessionEnvironment`、`GracefulSessionComponent`、`GracefulSessionAutostart`、`GracefulSessionProcess`、`GracefulSessionManager` 分别管理 session 定义、环境变量、默认组件、XDG Autostart、子进程和编排；`GracefulDesktopConfig`、`GracefulWallpaperStore`、`GracefulWallpaperTransition`、`GracefulWallpaperView`、`GracefulDesktopApp` 分别管理桌面配置、壁纸目录、过渡进度、绘制和 GTK 应用主体；`GracefulPanelApp`、`GracefulPanelWindow`、`GracefulPanelLayout`、`GracefulPanelWindowInfo`、`GracefulPanelWindowList` 和各内置 item 管理 panel 应用、窗口、布局、任务窗口模型/读取和显示组件。
-- 配置文件/参数：`greeter/graceful-greeter.desktop` 描述 LightDM greeter 入口；`/etc/lightdm/graceful-greeter.conf` 可配置 `[Greeter] Background=/path/to/image`；`session/graceful.desktop` 描述 Display Manager Wayland session 入口；`graceful-session --session=SESSION -- [COMMAND...]` 可指定 session 和单命令调试入口；`GRACEFUL_SESSION_COMMAND` 可覆盖默认组件编排；session 子进程默认设置 `GDK_BACKEND=x11`，使 desktop/panel 在 mutter Wayland session 中通过 Xwayland 使用现有 X11/EWMH 定位协议；session 子进程同时移除 `GTK_MODULES` 并设置 `NO_AT_BRIDGE=1`，避免旧 AT-SPI bridge 拖慢 GTK 启动；`GRACEFUL_DESKTOP_WALLPAPER_DIR` 和 `GRACEFUL_DESKTOP_WALLPAPER_INTERVAL` 控制桌面壁纸目录和切换间隔。
+- 配置文件/参数：`greeter/graceful-greeter.desktop` 描述 LightDM greeter 入口；`/etc/lightdm/graceful-greeter.conf` 可配置 `[Greeter] Background=/path/to/image`；`session/graceful.desktop` 描述 Display Manager Wayland session 入口并执行 `graceful-session-launcher`；`graceful-session --session=SESSION -- [COMMAND...]` 可指定 session 和单命令调试入口；`GRACEFUL_SESSION_COMMAND` 可覆盖默认组件编排；session 子进程默认设置 `GDK_BACKEND=x11`，使 desktop/panel 在 mutter Wayland session 中通过 Xwayland 使用现有 X11/EWMH 定位协议；session 子进程同时移除 `GTK_MODULES` 并设置 `NO_AT_BRIDGE=1`，避免旧 AT-SPI bridge 拖慢 GTK 启动；`GRACEFUL_DESKTOP_WALLPAPER_DIR` 和 `GRACEFUL_DESKTOP_WALLPAPER_INTERVAL` 控制桌面壁纸目录和切换间隔。
 - 持久化数据：无。
 - 迁移/兼容规则：无历史数据迁移。
 - 敏感信息处理：密码不写日志、不持久化；认证失败和 reset 时清空模型密码。
@@ -79,7 +79,7 @@
 
 ## 7. 发布与回滚
 
-- 产物：`graceful-greeter`、`graceful-session`、`graceful-desktop`、`graceful-panel` 可执行文件，`graceful-greeter.desktop` 和 `graceful.desktop`。
+- 产物：`graceful-greeter`、`graceful-session-launcher`、`graceful-session`、`graceful-desktop`、`graceful-panel` 可执行文件，`graceful-greeter.desktop` 和 `graceful.desktop`。
 - 安装/部署方式：CMake install 将二进制安装到 `${bindir}`，xgreeters 文件安装到 `${datadir}/xgreeters`，Wayland session 文件安装到 `${datadir}/wayland-sessions`；`make deb` 生成 Debian 包，包含 LightDM 默认 Graceful 配置。
 - 配置变更：Debian 包安装 `/etc/lightdm/lightdm.conf.d/50-graceful.conf`，设置 `greeter-session=graceful-greeter` 和 `user-session=graceful`。
 - 升级步骤：替换 greeter/session/desktop 二进制和 desktop entry。

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Graceful
 Comment=Graceful Desktop Environment Wayland session
-Exec=mutter --wayland --display-server -- /usr/bin/graceful-session
-TryExec=mutter
+Exec=/usr/bin/graceful-session-launcher
+TryExec=/usr/bin/graceful-session-launcher
 Type=Application
 DesktopNames=Graceful

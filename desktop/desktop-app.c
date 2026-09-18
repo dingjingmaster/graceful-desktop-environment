@@ -208,7 +208,7 @@ static void graceful_desktop_app_init (GracefulDesktopApp* self)
 {
     self->config = graceful_desktop_config_new ();
     self->wallpaperStore = graceful_wallpaper_store_new (graceful_desktop_config_get_wallpaper_dir (self->config));
-    self->gtkApp = gtk_application_new ("org.graceful.desktop", G_APPLICATION_DEFAULT_FLAGS);
+    self->gtkApp = gtk_application_new ("org.graceful.desktop", G_APPLICATION_NON_UNIQUE);
 
     g_signal_connect (self->gtkApp, "activate", G_CALLBACK (graceful_desktop_app_activate), self);
 }
